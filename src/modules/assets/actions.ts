@@ -1,0 +1,14 @@
+"use server";
+import { executeSql } from "@/core/db";
+import { logAudit } from "@/core/audit/log";
+import { firstIssueMessage, redirectWithMessage } from "@/core/http/navigation";
+import { assertBrandAccess } from "@/core/rbac/scope";
+import { requirePermission } from "@/core/rbac/guard";
+import { PERMISSIONS } from "@/core/rbac/permissions";
+import { assetSchema, assetStatusSchema } from "./schema";
+import { queryRows } from "@/core/db";
+import type { RowDataPacket } from "mysql2/promise";
+interface CompanyBrand extends RowDataPacket { brand_id: number; }
+function fail(message: string): never { return redirectWithMessage("/assets", "error", message); }
+export async function createAssetAction(formData: FormData): Promise<void> { const actor = await requirePermission(PERMISSIONS.assetManage); const parsed = assetSchema.safeParse(Object.fromEntries(formData.entries())); if (!parsed.success) fail(firstIssueMessage(parsed.error)); if (parsed.data.companyId) { const company = (await queryRows<CompanyBrand>("SELECT brand_id FROM companies WHERE id=? LIMIT 1", [parsed.data.companyId]))[0]; if (!company) fail("CV tidak ditemukan."); assertBrandAccess(actor, company.brand_id); } try { await executeSql("INSERT INTO assets (asset_code, name, category, serial_number, company_id, notes) VALUES (?, ?, ?, ?, ?, ?)", [parsed.data.assetCode, parsed.data.name, parsed.data.category, parsed.data.serialNumber ?? null, parsed.data.companyId, parsed.data.notes ?? null]); } catch { fail("Kode aset sudah digunakan atau data tidak valid."); } await logAudit({ userId: actor.id, action: "asset.create", entityType: "asset", details: { assetCode: parsed.data.assetCode } }); redirectWithMessage("/assets", "ok", "Aset berhasil dicatat."); }
+export async function updateAssetStatusAction(formData: FormData): Promise<void> { const actor = await requirePermission(PERMISSIONS.assetManage); const parsed = assetStatusSchema.safeParse(Object.fromEntries(formData.entries())); if (!parsed.success) fail(firstIssueMessage(parsed.error)); if (parsed.data.employeeId) { const employee = (await queryRows<CompanyBrand>("SELECT brand_id FROM employees WHERE id=? AND is_active=TRUE LIMIT 1", [parsed.data.employeeId]))[0]; if (!employee) fail("Karyawan aktif tidak ditemukan."); assertBrandAccess(actor, employee.brand_id); } const result = await executeSql("UPDATE assets a LEFT JOIN companies c ON c.id=a.company_id SET a.status=?, a.assigned_employee_id=?, a.assigned_at=IF(? IS NULL, NULL, CURDATE()) WHERE a.id=? AND (? OR a.company_id IS NULL OR c.brand_id IN (SELECT brand_id FROM user_brand_access WHERE user_id=?))", [parsed.data.status, parsed.data.employeeId, parsed.data.employeeId, parsed.data.assetId, actor.scopeAll, actor.id]); if (result.affectedRows !== 1) fail("Aset tidak ditemukan atau di luar scope."); redirectWithMessage("/assets", "ok", "Status aset diperbarui."); }

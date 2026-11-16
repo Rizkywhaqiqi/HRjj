@@ -1,0 +1,54 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Install dependencies",
+      "type": "shell",
+      "command": "npm",
+      "args": ["install"],
+      "problemMatcher": []
+    },
+      {
+        "label": "Initialize env file",
+        "type": "shell",
+        "command": "npm",
+        "args": ["run", "env:init"],
+        "problemMatcher": []
+      },
+      {
+        "label": "Migrate database",
+        "type": "shell",
+        "command": "npm",
+        "args": ["run", "db:migrate"],
+        "problemMatcher": []
+      },
+      {
+        "label": "Typecheck",
+        "type": "shell",
+        "command": "npm",
+        "args": ["run", "typecheck"],
+        "problemMatcher": ["$tsc"]
+      },
+    {
+      "label": "Lint",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "lint"],
+      "problemMatcher": ["$eslint-stylish"]
+    },
+    {
+      "label": "Build",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "build"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Seed database",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "db:seed"],
+      "problemMatcher": []
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+ALTER TABLE notification_logs
+  MODIFY COLUMN status ENUM('PENDING', 'PROCESSING', 'SENT', 'FAILED') NOT NULL DEFAULT 'PENDING',
+  ADD COLUMN claimed_at DATETIME NULL AFTER attempts,
+  ADD COLUMN claim_token CHAR(36) NULL AFTER claimed_at;

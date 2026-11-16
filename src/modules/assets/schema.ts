@@ -1,0 +1,3 @@
+import { z } from "zod";
+export const assetSchema = z.object({ assetCode: z.string().trim().min(2).max(60), name: z.string().trim().min(2).max(150), category: z.enum(["SERAGAM", "PERALATAN", "ELEKTRONIK", "LAINNYA"]), serialNumber: z.string().trim().max(120).optional(), companyId: z.preprocess((v) => v === "" ? null : v, z.coerce.number().int().positive().nullable()), notes: z.string().trim().max(500).optional() });
+export const assetStatusSchema = z.object({ assetId: z.coerce.number().int().positive(), status: z.enum(["AVAILABLE", "ASSIGNED", "MAINTENANCE", "RETIRED"]), employeeId: z.preprocess((v) => v === "" ? null : v, z.coerce.number().int().positive().nullable()) });

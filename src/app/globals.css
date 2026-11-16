@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-50: #eef7f3;
+  --color-brand-100: #d7ece2;
+  --color-brand-200: #b0d9c9;
+  --color-brand-300: #7fbda6;
+  --color-brand-400: #4f9d82;
+  --color-brand-500: #2f8268;
+  --color-brand-600: #176b58;
+  --color-brand-700: #135646;
+  --color-brand-800: #104538;
+  --color-brand-900: #0d372e;
+  --color-surface: #f7f8fa;
+  --color-ink: #182230;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial,
+    sans-serif;
+  --animate-brand-card-float: brand-card-float 6s ease-in-out infinite;
+
+  @keyframes brand-card-float {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) rotate(-1deg) scale(0.98);
+    }
+
+    50% {
+      transform: translate3d(5px, -12px, 0) rotate(1deg) scale(1.02);
+    }
+  }
+}
+
+:root {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+::selection {
+  background-color: var(--color-brand-200);
+  color: var(--color-brand-900);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-brand-card-float {
+    animation: none;
+  }
+}
+
+@media print {
+  @page {
+    margin: 15mm;
+  }
+
+  body:has(.letter-preview-document) {
+    background: white !important;
+  }
+
+  body:has(.letter-preview-document) aside,
+  body:has(.letter-preview-document) header,
+  body:has(.letter-preview-document) .letter-preview-toolbar {
+    display: none !important;
+  }
+
+  body:has(.letter-preview-document) main {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body:has(.letter-preview-document) .letter-preview-document,
+  body:has(.letter-preview-document) .docx-wrapper {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    overflow: visible !important;
+  }
+
+  body:has(.letter-preview-document) .docx {
+    margin: 0 auto !important;
+    box-shadow: none !important;
+  }
+}
+
