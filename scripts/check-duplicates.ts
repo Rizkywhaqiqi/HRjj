@@ -1,4 +1,4 @@
-import { createPool } from "mysql2/promise";
+import { createPool, type RowDataPacket } from "mysql2/promise";
 import { getDbEnv } from "../src/core/env";
 
 async function main() {
@@ -13,13 +13,13 @@ async function main() {
 
   try {
     // Total employees
-    const [total] = await pool.query<{ total: number }[]>(
+    const [total] = await pool.query<Array<RowDataPacket & { total: number }>>(
       "SELECT COUNT(*) AS total FROM employees"
     );
     console.log(`Total karyawan: ${total[0].total}`);
 
     // Duplicate full_name + phone
-    const [dupNamePhone] = await pool.query<any[]>(
+    const [dupNamePhone] = await pool.query<RowDataPacket[]>(
       `SELECT full_name, phone, COUNT(*) AS cnt, GROUP_CONCAT(employee_code SEPARATOR ', ') AS codes
        FROM employees
        GROUP BY full_name, phone
@@ -31,7 +31,7 @@ async function main() {
     console.table(dupNamePhone);
 
     // Duplicate full_name only
-    const [dupName] = await pool.query<any[]>(
+    const [dupName] = await pool.query<RowDataPacket[]>(
       `SELECT full_name, COUNT(*) AS cnt, GROUP_CONCAT(employee_code SEPARATOR ', ') AS codes
        FROM employees
        GROUP BY full_name
@@ -43,7 +43,7 @@ async function main() {
     console.table(dupName);
 
     // Employees imported recently (highest IDs)
-    const [recent] = await pool.query<any[]>(
+    const [recent] = await pool.query<RowDataPacket[]>(
       `SELECT employee_code, full_name, phone, email, DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS created_at
        FROM employees
        ORDER BY id DESC LIMIT 20`
@@ -52,7 +52,7 @@ async function main() {
     console.table(recent);
 
     // Check for employees with same join_date pattern from import (2026 dates)
-    const [imported2026] = await pool.query<{ cnt: number }[]>(
+    const [imported2026] = await pool.query<Array<RowDataPacket & { cnt: number }>>(
       `SELECT COUNT(*) AS cnt FROM employees WHERE join_date >= '2026-01-01'`
     );
     console.log(`\nKaryawan dengan join_date >= 2026-01-01: ${imported2026[0].cnt}`);

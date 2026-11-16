@@ -1,4 +1,4 @@
-import { createPool } from "mysql2/promise";
+import { createPool, type RowDataPacket } from "mysql2/promise";
 import { getDbEnv } from "../src/core/env";
 
 async function main() {
@@ -13,7 +13,7 @@ async function main() {
 
   try {
     // Cek timestamp karyawan terbaru
-    const [recent] = await pool.query<{ id: number; employee_code: string; full_name: string; created_at: string }[]>(
+    const [recent] = await pool.query<Array<RowDataPacket & { id: number; employee_code: string; full_name: string; created_at: string }>>(
       `SELECT id, employee_code, full_name, created_at FROM employees
        ORDER BY id DESC LIMIT 50`
     );
@@ -21,7 +21,7 @@ async function main() {
     console.table(recent);
 
     // Cek distinct timestamps near the top
-    const [timestamps] = await pool.query<{ created_at: string; cnt: number }[]>(
+    const [timestamps] = await pool.query<Array<RowDataPacket & { created_at: string; cnt: number }>>(
       `SELECT created_at, COUNT(*) as cnt FROM employees
        WHERE id > 1300
        GROUP BY created_at
@@ -32,7 +32,7 @@ async function main() {
     console.table(timestamps);
 
     // Check total count
-    const [total] = await pool.query<{ total: number }[]>(
+    const [total] = await pool.query<Array<RowDataPacket & { total: number }>>(
       "SELECT COUNT(*) AS total FROM employees"
     );
     console.log(`\nTotal karyawan saat ini: ${total[0].total}`);

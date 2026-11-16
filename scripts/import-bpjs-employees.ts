@@ -3,10 +3,14 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import ExcelJS from "exceljs";
-import { createConnection, type Connection } from "mysql2/promise";
+import {
+  createConnection,
+  type Connection,
+  type ResultSetHeader,
+  type RowDataPacket,
+} from "mysql2/promise";
 import {
   createBlindIndex,
-  encryptField,
 } from "../src/core/crypto/field-encrypt";
 import { getDbEnv } from "../src/core/env";
 import { normalizePhone } from "../src/core/normalization";
@@ -62,27 +66,27 @@ interface SourceRow {
   childrenCount: number | null;
 }
 
-interface BrandRow {
+interface BrandRow extends RowDataPacket {
   id: number;
   code: string;
   name: string;
   is_active: 0 | 1;
 }
 
-interface CompanyRow {
+interface CompanyRow extends RowDataPacket {
   id: number;
   brand_id: number;
   name: string;
   is_active: 0 | 1;
 }
 
-interface LocationRow {
+interface LocationRow extends RowDataPacket {
   id: number;
   name: string;
   is_active: 0 | 1;
 }
 
-interface PositionRow {
+interface PositionRow extends RowDataPacket {
   id: number;
   name: string;
   is_active: 0 | 1;
@@ -397,7 +401,7 @@ async function loadOrganization(
   );
   const locations = new Map(locationRows.map((l) => [l.name, l]));
 
-  const [divisionRows] = await connection.query<{ id: number; name: string }[]>(
+  const [divisionRows] = await connection.query<Array<RowDataPacket & { id: number; name: string }>>(
     "SELECT id, name FROM divisions",
   );
   const divisions = new Map(divisionRows.map((d) => [d.name, d.id]));
@@ -539,7 +543,7 @@ async function run(filePath: string, commit: boolean): Promise<void> {
     const orgs = await loadOrganization(connection, workbook.rows, commit);
 
     // Check existing NIKs for uniqueness
-    const [existingNikRows] = await connection.query<{ id: number; nik_hash: string | null }[]>(
+    const [existingNikRows] = await connection.query<Array<RowDataPacket & { id: number; nik_hash: string | null }>>(
       "SELECT id, nik_hash FROM employees WHERE nik_hash IS NOT NULL",
     );
     const existingNikHashes = new Set(
