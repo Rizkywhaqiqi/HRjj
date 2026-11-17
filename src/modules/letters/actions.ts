@@ -59,7 +59,7 @@ export async function uploadLetterTemplateAction(formData: FormData): Promise<vo
   if (!parsed.success) fail(firstIssueMessage(parsed.error));
   const file = formData.get("template");
   if (!(file instanceof File) || file.size === 0) fail("File template DOCX wajib dipilih.");
-  if (file.size > MAX_UPLOAD_BYTES || file.type !== "application/vnd.openxmlformats-officedocument.wordprocessingml.document") fail("Template harus DOCX dan maksimal 4 MB.");
+  if (file.size > MAX_UPLOAD_BYTES || file.type !== "application/vnd.openxmlformats-officedocument.wordprocessingml.document") fail("Template harus DOCX dan maksimal 1,5 MB.");
   const bytes = Buffer.from(await file.arrayBuffer());
   try {
     const zip = new PizZip(bytes);

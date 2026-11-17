@@ -92,6 +92,6 @@ Aplikasi tetap memeriksa sesi, izin, dan scope sebelum mengambil file melalui en
 
 File lama yang sudah hilang dari filesystem deployment sebelumnya tidak dapat dibuat kembali hanya dari path database. Pulihkan dari sumber/backup sebelum beralih. Pada Vercel, storage gagal tertutup jika kredensial belum tersedia; tidak ada fallback lokal yang dapat menyembunyikan kesalahan konfigurasi.
 
-Batas unggah melalui Server Actions adalah **4 MiB per file**; request diberi ruang untuk metadata multipart di bawah batas payload Vercel. Batas ini berlaku untuk CV, KTP, dan template DOCX. Untuk file yang lebih besar, gunakan alur direct upload terautentikasi terpisah.
+Batas unggah melalui Server Actions adalah **1,5 MiB per file**; request diberi ruang untuk metadata multipart di bawah batas payload Vercel. Batas ini berlaku untuk CV, KTP, dan template DOCX. Untuk file yang lebih besar, gunakan alur direct upload terautentikasi terpisah.
 
 Pemeriksaan: `npm run test:storage`, `npm run typecheck`, `npm run lint`, dan `npm run build`. Jangan menjalankan migrasi database untuk perubahan storage ini.
