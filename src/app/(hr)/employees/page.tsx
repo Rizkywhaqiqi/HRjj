@@ -7,12 +7,13 @@ import type { LetterType } from "@/modules/letters/schema";
 import { listExitReasons } from "@/modules/master-data";
 import { listBrandOptions, listCompanyOptions, listDivisionOptions, listLocations } from "@/modules/master-data";
 import type { EmployeeListFilters } from "@/modules/employees/queries";
-import { Card, CardBody, CardHeader, PageHeader, Badge, EmptyState, inputClass, buttonDanger, buttonSecondary } from "@/components/ui/primitives";
+import { Card, CardBody, CardHeader, PageHeader, Badge, EmptyState, inputClass, buttonSecondary } from "@/components/ui/primitives";
 import { FlashAlerts, readFlash } from "@/components/shared/flash";
 import { firstParam } from "@/components/shared/format";
 import { Pagination, parsePage } from "@/components/shared/pagination";
 import { todayInJakarta } from "@/modules/letters/date";
 import EmployeeLetterLauncher from "./employee-letter-launcher";
+import EmployeeDeactivateMenu from "./employee-deactivate-menu";
 
 export const instant = false;
 
@@ -272,28 +273,12 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
                       ) : null}
                     </div>
                     {canDeactivate && employee.is_active ? (
-                      <details className="relative inline-block">
-                        <summary className="cursor-pointer rounded-lg px-2 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50">
-                          Nonaktifkan
-                        </summary>
-                        <form action={deactivateEmployeeAction} className="absolute right-0 z-10 mt-2 w-64 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-lg">
-                          <input type="hidden" name="employeeId" value={employee.id} />
-                          <label className="grid gap-1 text-xs text-slate-600">
-                            Tanggal keluar
-                            <input name="exitDate" type="date" required className={inputClass} />
-                          </label>
-                          <label className="grid gap-1 text-xs text-slate-600">
-                            Alasan keluar
-                            <select name="exitReasonId" required className={inputClass}>
-                              <option value="">Pilih alasan</option>
-                              {exitReasons.map((item) => (
-                                <option key={item.id} value={item.id}>{item.name}</option>
-                              ))}
-                            </select>
-                          </label>
-                          <button type="submit" className={buttonDanger}>Konfirmasi nonaktif</button>
-                        </form>
-                      </details>
+                      <EmployeeDeactivateMenu
+                        employeeId={employee.id}
+                        employeeName={employee.full_name}
+                        exitReasons={exitReasons}
+                        deactivateAction={deactivateEmployeeAction}
+                      />
                     ) : null}
                   </td>
                 </tr>

@@ -5,7 +5,7 @@ import {
   useEffect,
   useLayoutEffect,
   useRef,
-  useState,
+  useSyncExternalStore,
   type CSSProperties,
   type ReactNode,
   type RefObject,
@@ -33,6 +33,10 @@ const hiddenStyle: CSSProperties = {
   visibility: "hidden",
 };
 
+const subscribe = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
+
 export function AnchoredPopover({
   open,
   onClose,
@@ -43,13 +47,8 @@ export function AnchoredPopover({
   className = "",
   ariaLabel,
 }: AnchoredPopoverProps) {
-  const [mounted, setMounted] = useState(false);
-  const [style, setStyle] = useState<CSSProperties>(hiddenStyle);
+  const mounted = useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot);
   const panelRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const reposition = useCallback(() => {
     const anchor = anchorRef.current;
@@ -57,10 +56,16 @@ export function AnchoredPopover({
     if (!anchor || !panel) return;
 
     const anchorRect = anchor.getBoundingClientRect();
-    const panelWidth = width === "anchor" ? anchorRect.width : width;
-    const panelHeight = panel.offsetHeight;
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
+    const panelWidth = Math.min(
+      width === "anchor" ? anchorRect.width : width,
+      Math.max(0, viewportWidth - VIEWPORT_MARGIN * 2),
+    );
+    // Set dimensions before measuring so wrapping and height constraints count.
+    panel.style.width = `${panelWidth}px`;
+    panel.style.maxHeight = `${Math.max(0, viewportHeight - VIEWPORT_MARGIN * 2)}px`;
+    const panelHeight = panel.offsetHeight;
 
     const spaceBelow =
       viewportHeight - anchorRect.bottom - ANCHOR_GAP - VIEWPORT_MARGIN;
@@ -81,25 +86,18 @@ export function AnchoredPopover({
     const maxTop = Math.max(VIEWPORT_MARGIN, viewportHeight - panelHeight - VIEWPORT_MARGIN);
     top = Math.min(Math.max(top, VIEWPORT_MARGIN), maxTop);
 
-    setStyle({
-      position: "fixed",
-      top,
-      left,
-      width: panelWidth,
-      maxHeight: viewportHeight - VIEWPORT_MARGIN * 2,
-      visibility: "visible",
-    });
+    // Synchronize the measured position with the DOM without a render per scroll.
+    panel.style.top = `${top}px`;
+    panel.style.left = `${left}px`;
+    panel.style.visibility = "visible";
   }, [align, anchorRef, width]);
 
   useLayoutEffect(() => {
-    if (!open) {
-      setStyle(hiddenStyle);
-      return;
-    }
+    if (!mounted || !open) return;
     reposition();
     const raf = window.requestAnimationFrame(reposition);
     return () => window.cancelAnimationFrame(raf);
-  }, [open, reposition]);
+  }, [mounted, open, reposition]);
 
   useEffect(() => {
     if (!open) return;
@@ -138,7 +136,7 @@ export function AnchoredPopover({
       ref={panelRef}
       role="dialog"
       aria-label={ariaLabel}
-      style={style}
+      style={hiddenStyle}
       className={`z-[130] overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white shadow-xl ${className}`}
     >
       {children}
