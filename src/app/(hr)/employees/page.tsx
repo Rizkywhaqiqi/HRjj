@@ -11,8 +11,6 @@ import {
   listEmployees,
   deactivateEmployeeAction,
 } from "@/modules/employees";
-import { createLetterAction } from "@/modules/letters";
-import type { LetterType } from "@/modules/letters/schema";
 import { listExitReasons } from "@/modules/master-data";
 import {
   listBrandOptions,
@@ -24,29 +22,28 @@ import type { EmployeeListFilters } from "@/modules/employees/queries";
 import {
   Card,
   CardBody,
-  CardHeader,
   PageHeader,
   Badge,
   EmptyState,
   inputClass,
   buttonSecondary,
+  buttonPrimary,
 } from "@/components/ui/primitives";
 import { FlashAlerts, readFlash } from "@/components/shared/flash";
 import { firstParam } from "@/components/shared/format";
 import { Pagination, parsePage } from "@/components/shared/pagination";
-import { todayInJakarta } from "@/modules/letters/date";
-import EmployeeLetterLauncher from "./employee-letter-launcher";
-import EmployeeDeactivateMenu from "./employee-deactivate-menu";
 
+import {
+  Search,
+  Plus,
+  Upload,
+  Users,
+  ClipboardCheck,
+  ArrowUpRight,
+  MapPin,
+} from "lucide-react";
+import EmployeeRowActions from "./employee-row-actions";
 export const instant = false;
-
-const LETTER_TYPES: readonly LetterType[] = [
-  "SP",
-  "SKK",
-  "CONTRACT",
-  "NDA",
-  "STILL_WORKING",
-];
 
 const PAGE_SIZE = 10;
 
@@ -110,353 +107,446 @@ export default async function EmployeesPage({
     listDivisionOptions(),
     listLocations(actor),
   ]);
-  const issuedDate = todayInJakarta();
+  const queryValues: Record<string, string> = {
+    ...(search ? { search } : {}),
+    ...(filters.brandId ? { brand: String(filters.brandId) } : {}),
+    ...(filters.companyId ? { company: String(filters.companyId) } : {}),
+    ...(filters.divisionId ? { division: String(filters.divisionId) } : {}),
+    ...(filters.locationId ? { location: String(filters.locationId) } : {}),
+    ...(status ? { status } : {}),
+    ...(incompleteOnly ? { incomplete: "1" } : {}),
+  };
+  const tabHref = (nextStatus?: string, incomplete = false) => {
+    const q = new URLSearchParams(queryValues);
+    q.delete("status");
+    q.delete("incomplete");
+    if (nextStatus) q.set("status", nextStatus);
+    if (incomplete) q.set("incomplete", "1");
+    return `/employees${q.size ? `?${q}` : ""}`;
+  };
+  const hasFilters = Object.keys(queryValues).length > 0;
+  const filterCount = [
+    filters.brandId,
+    filters.companyId,
+    filters.divisionId,
+    filters.locationId,
+  ].filter(Boolean).length;
+  const rowActions = (employee: (typeof employees.employees)[number]) => (
+    <EmployeeRowActions
+      id={employee.id}
+      name={employee.full_name}
+      active={!!employee.is_active}
+      canEdit={canEditProfiles}
+      canCreateLetter={canCreateLetter}
+      canViewLetters={canViewLetters}
+      canDeactivate={canDeactivate}
+      exitReasons={exitReasons.map((e) => ({ id: e.id, name: e.name }))}
+      deactivateAction={deactivateEmployeeAction}
+    />
+  );
+  const tenure = (months: number | null) =>
+    months === null
+      ? "Belum diisi"
+      : `${Math.floor(months / 12)} tahun ${months % 12} bulan`;
+  const tabs = [
+    {
+      label: "Semua karyawan",
+      href: tabHref(),
+      active: !status && !incompleteOnly,
+    },
+    {
+      label: "Aktif",
+      href: tabHref("active"),
+      active: status === "active" && !incompleteOnly,
+    },
+    {
+      label: "Nonaktif",
+      href: tabHref("inactive"),
+      active: status === "inactive" && !incompleteOnly,
+    },
+    {
+      label: "Belum lengkap",
+      href: tabHref(undefined, true),
+      active: incompleteOnly,
+    },
+  ];
+  const select = (
+    name: string,
+    label: string,
+    value: number | undefined,
+    options: { id: number; name: string }[],
+  ) => (
+    <label className="grid min-w-0 gap-1.5 text-xs font-semibold text-slate-600">
+      {label}
+      <select name={name} defaultValue={value ?? ""} className={inputClass}>
+        <option value="">Semua {label.toLowerCase()}</option>
+        {options.map((o) => (
+          <option key={o.id} value={o.id}>
+            {o.name}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
   return (
-    <div>
+    <div className="space-y-5">
       <PageHeader
         title="Karyawan"
-        description={
-          incompleteOnly
-            ? "Karyawan aktif dengan profil belum lengkap. Data dapat dilengkapi dari halaman edit kapan saja."
-            : "Cari dan tinjau ringkasan karyawan. Profil yang belum lengkap dapat dilanjutkan kapan saja."
-        }
+        description="Kelola profil, penempatan, dan dokumen karyawan dalam satu tempat."
         action={
-          canCreate || incompleteCount > 0 ? (
+          canCreate ? (
             <div className="flex flex-wrap gap-2">
-              {incompleteCount > 0 ? (
-                <Link
-                  href="/employees?incomplete=1"
-                  className={buttonSecondary}
-                >
-                  Karyawan belum lengkap ({incompleteCount})
-                </Link>
-              ) : null}
-              {canCreate ? (
-                <>
-                  <Link href="/employees/new" className={buttonSecondary}>
-                    Tambah karyawan
-                  </Link>
-                  <Link href="/employees/import" className={buttonSecondary}>
-                    Import karyawan
-                  </Link>
-                </>
-              ) : null}
+              <Link href="/employees/import" className={buttonSecondary}>
+                <Upload size={16} aria-hidden="true" />
+                Import Excel
+              </Link>
+              <Link href="/employees/new" className={buttonPrimary}>
+                <Plus size={17} aria-hidden="true" />
+                Tambah karyawan
+              </Link>
             </div>
-          ) : null
+          ) : undefined
         }
       />
       <FlashAlerts {...readFlash(params)} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4">
+          <span className="rounded-xl bg-brand-50 p-3 text-brand-700">
+            <Users size={21} aria-hidden="true" />
+          </span>
+          <div>
+            <p className="text-xs font-medium text-slate-500">
+              {hasFilters ? "Hasil pencarian & filter" : "Seluruh karyawan"}
+            </p>
+            <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
+              {employees.total}
+              <span className="ml-2 text-xs font-normal text-slate-500">
+                karyawan
+              </span>
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/employees?incomplete=1"
+          className="group flex items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50/60 px-5 py-4 transition hover:bg-amber-50"
+        >
+          <div className="flex items-center gap-4">
+            <span className="rounded-xl bg-white p-3 text-amber-700">
+              <ClipboardCheck size={21} aria-hidden="true" />
+            </span>
+            <div>
+              <p className="text-xs font-medium text-amber-800">
+                Profil aktif perlu dilengkapi
+              </p>
+              <p className="mt-1 text-2xl font-semibold text-slate-900">
+                {incompleteCount}
+                <span className="ml-2 text-xs font-normal text-slate-500">
+                  di seluruh brand yang dapat diakses
+                </span>
+              </p>
+            </div>
+          </div>
+          <ArrowUpRight
+            size={18}
+            className="shrink-0 text-amber-700"
+            aria-hidden="true"
+          />
+        </Link>
+      </div>
       <Card>
-        <CardHeader
-          title={
-            incompleteOnly ? "Karyawan aktif belum lengkap" : "Daftar karyawan"
-          }
-          description={`${employees.total} karyawan ditemukan`}
-        />
         <CardBody>
-          <form
-            method="get"
-            className="mb-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
-          >
-            <input
-              type="search"
-              name="search"
-              defaultValue={search}
-              minLength={2}
-              maxLength={80}
-              placeholder="Cari nama, kode, atau telepon (min. 2 karakter)"
-              aria-label="Cari karyawan berdasarkan nama, kode, atau telepon"
-              className={inputClass}
-            />
-            {incompleteOnly ? (
-              <input type="hidden" name="incomplete" value="1" />
-            ) : null}
-            <select
-              name="brand"
-              defaultValue={filters.brandId ?? ""}
-              className={inputClass}
-              aria-label="Filter brand"
-            >
-              <option value="">Semua brand</option>
-              {brands.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-            <select
-              name="company"
-              defaultValue={filters.companyId ?? ""}
-              className={inputClass}
-              aria-label="Filter CV"
-            >
-              <option value="">Semua CV</option>
-              {companies.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-            <select
-              name="division"
-              defaultValue={filters.divisionId ?? ""}
-              className={inputClass}
-              aria-label="Filter divisi"
-            >
-              <option value="">Semua divisi</option>
-              {divisions.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-            <select
-              name="location"
-              defaultValue={filters.locationId ?? ""}
-              className={inputClass}
-              aria-label="Filter lokasi"
-            >
-              <option value="">Semua lokasi</option>
-              {locations.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-            <select
-              name="status"
-              defaultValue={status ?? ""}
-              className={inputClass}
-              aria-label="Filter status"
-            >
-              <option value="">Semua status</option>
-              <option value="active">Aktif</option>
-              <option value="inactive">Nonaktif</option>
-            </select>
-            <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-4">
-              <button type="submit" className={buttonSecondary}>
-                Terapkan filter
+          <form method="get" className="space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <label className="grid flex-1 gap-1.5 text-xs font-semibold text-slate-600">
+                Cari karyawan
+                <div className="relative">
+                  <Search
+                    size={17}
+                    aria-hidden="true"
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
+                  <input
+                    type="search"
+                    name="search"
+                    defaultValue={search}
+                    minLength={2}
+                    maxLength={80}
+                    placeholder="Nama, kode karyawan, atau nomor telepon"
+                    className={`${inputClass} pl-10`}
+                  />
+                </div>
+              </label>
+              <button type="submit" className={`${buttonPrimary} sm:min-w-28`}>
+                Cari
               </button>
-              {search ||
-              filters.brandId ||
-              filters.companyId ||
-              filters.divisionId ||
-              filters.locationId ||
-              status ||
-              incompleteOnly ? (
+              {hasFilters ? (
                 <Link href="/employees" className={buttonSecondary}>
-                  Reset filter
-                </Link>
-              ) : null}
-              {canExport ? (
-                <Link
-                  href={`/api/reports/employees.pdf?${new URLSearchParams({
-                    ...(search ? { search } : {}),
-                    ...(filters.brandId
-                      ? { brand: String(filters.brandId) }
-                      : {}),
-                    ...(filters.companyId
-                      ? { company: String(filters.companyId) }
-                      : {}),
-                    ...(filters.divisionId
-                      ? { division: String(filters.divisionId) }
-                      : {}),
-                    ...(filters.locationId
-                      ? { location: String(filters.locationId) }
-                      : {}),
-                    ...(status ? { status } : {}),
-                  }).toString()}`}
-                  className={buttonSecondary}
-                >
-                  Export PDF
+                  Reset
                 </Link>
               ) : null}
             </div>
+            {status ? (
+              <input type="hidden" name="status" value={status} />
+            ) : null}
+            {incompleteOnly ? (
+              <input type="hidden" name="incomplete" value="1" />
+            ) : null}
+            <details
+              open={filterCount > 0}
+              className="group rounded-xl border border-slate-200 bg-slate-50/60"
+            >
+              <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-600">
+                Filter penempatan
+                {filterCount
+                  ? ` · ${filterCount} diterapkan`
+                  : " · brand, perusahaan, divisi, lokasi"}
+              </summary>
+              <div className="grid gap-3 border-t border-slate-200 p-4 sm:grid-cols-2 xl:grid-cols-4">
+                {select("brand", "Brand", filters.brandId, brands)}
+                {select("company", "Perusahaan", filters.companyId, companies)}
+                {select("division", "Divisi", filters.divisionId, divisions)}
+                {select("location", "Lokasi", filters.locationId, locations)}
+                <div className="sm:col-span-2 xl:col-span-4">
+                  <button className={buttonSecondary}>Terapkan filter</button>
+                </div>
+              </div>
+            </details>
           </form>
-
-          {employees.employees.length === 0 ? (
+        </CardBody>
+      </Card>
+      <Card className="overflow-hidden">
+        <div className="flex flex-col gap-3 border-b border-slate-200 px-4 pt-4 sm:px-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-base font-semibold text-slate-900">
+              Daftar karyawan
+            </h2>
+            {canExport ? (
+              <Link
+                href="/reports"
+                className="text-xs font-semibold text-brand-700 hover:underline"
+              >
+                Buka laporan & ekspor →
+              </Link>
+            ) : null}
+          </div>
+          <nav
+            aria-label="Status daftar karyawan"
+            className="-mb-px flex gap-5 overflow-x-auto"
+          >
+            {tabs.map((t) => (
+              <Link
+                key={t.label}
+                href={t.href}
+                aria-current={t.active ? "page" : undefined}
+                className={`shrink-0 border-b-2 pb-3 text-sm font-semibold transition ${t.active ? "border-brand-600 text-brand-700" : "border-transparent text-slate-500 hover:text-slate-900"}`}
+              >
+                {t.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+        {employees.employees.length === 0 ? (
+          <CardBody>
             <EmptyState
               title={
-                incompleteOnly
-                  ? "Tidak ada karyawan aktif yang belum lengkap"
-                  : "Karyawan tidak ditemukan"
+                hasFilters
+                  ? "Tidak ada karyawan yang sesuai"
+                  : "Belum ada data karyawan"
               }
               description={
-                search
-                  ? "Coba kata kunci lain atau hapus pencarian."
-                  : incompleteOnly
-                    ? "Semua profil karyawan aktif sudah lengkap."
-                    : canCreate
-                      ? "Belum ada data karyawan. Gunakan menu Tambah karyawan untuk mulai mengisi."
-                      : "Data karyawan akan muncul di sini."
+                hasFilters
+                  ? "Coba kata kunci lain, ganti status, atau reset filter penempatan."
+                  : "Tambahkan karyawan baru atau import data melalui Excel untuk memulai."
               }
             />
-          ) : (
-            <div className="overflow-x-auto rounded-xl border border-slate-200">
-              <table className="w-full min-w-[1080px] border-collapse text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            {hasFilters ? (
+              <div className="mt-4 text-center">
+                <Link href="/employees" className={buttonSecondary}>
+                  Tampilkan semua karyawan
+                </Link>
+              </div>
+            ) : null}
+          </CardBody>
+        ) : (
+          <>
+            <div className="divide-y divide-slate-100 md:hidden">
+              {employees.employees.map((e) => (
+                <article key={e.id} className="space-y-4 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <Link
+                        href={`/employees/${e.id}`}
+                        className="break-words font-semibold text-slate-900"
+                      >
+                        {e.full_name}
+                      </Link>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {e.employee_code}
+                      </p>
+                    </div>
+                    <Badge tone={e.is_active ? "success" : "neutral"}>
+                      {e.is_active ? "Aktif" : "Nonaktif"}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <p className="text-slate-400">Jabatan / divisi</p>
+                      <p className="mt-1 font-medium text-slate-700">
+                        {e.position_name}
+                      </p>
+                      <p className="mt-0.5 text-slate-500">{e.division_name}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-400">Brand / perusahaan</p>
+                      <p className="mt-1 font-medium text-slate-700">
+                        {e.brand_name}
+                      </p>
+                      <p className="mt-0.5 text-slate-500">
+                        {e.company_name ?? "Belum dipilih"}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="flex items-center gap-1.5 text-xs text-slate-500">
+                    <MapPin size={13} aria-hidden="true" />
+                    {e.location_name} · {tenure(e.service_months)}
+                  </p>
+                  <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                    {e.is_profile_complete === 0 ? (
+                      <Badge tone="warning">Profil belum lengkap</Badge>
+                    ) : (
+                      <span className="text-xs text-slate-400">
+                        Profil lengkap
+                      </span>
+                    )}
+                    <div className="flex gap-2">
+                      <Link
+                        href={`/employees/${e.id}`}
+                        className={buttonSecondary}
+                      >
+                        Detail
+                      </Link>
+                      {rowActions(e)}
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full min-w-[800px] text-left text-sm">
+                <thead className="bg-slate-50/80 text-xs text-slate-500">
                   <tr>
-                    <th scope="col" className="px-4 py-3 font-semibold">
-                      Karyawan
-                    </th>
-                    <th scope="col" className="px-4 py-3 font-semibold">
-                      Status
-                    </th>
-                    <th scope="col" className="px-4 py-3 font-semibold">
-                      Jabatan / divisi
-                    </th>
-                    <th scope="col" className="px-4 py-3 font-semibold">
-                      Brand / CV
-                    </th>
-                    <th scope="col" className="px-4 py-3 font-semibold">
-                      Lokasi
-                    </th>
-                    <th scope="col" className="px-4 py-3 font-semibold">
-                      Masa kerja
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-right font-semibold"
-                    >
-                      Aksi
-                    </th>
+                    {[
+                      "Karyawan",
+                      "Jabatan / divisi",
+                      "Penempatan",
+                      "Masa kerja",
+                      "Aksi",
+                    ].map((h) => (
+                      <th
+                        key={h}
+                        scope="col"
+                        className={`px-5 py-3.5 font-semibold ${h === "Aksi" ? "text-right" : ""}`}
+                      >
+                        {h}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {employees.employees.map((employee) => (
+                  {employees.employees.map((e) => (
                     <tr
-                      key={employee.id}
-                      className="align-top transition hover:bg-brand-50/40"
+                      key={e.id}
+                      className="align-top transition hover:bg-slate-50/70"
                     >
-                      <td className="px-4 py-3">
-                        <Link
-                          href={`/employees/${employee.id}`}
-                          className="font-semibold text-slate-900 hover:text-brand-700"
-                        >
-                          {employee.full_name}
-                        </Link>
-                        <p className="mt-0.5 text-xs font-medium text-slate-500">
-                          {employee.employee_code}
-                        </p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-col items-start gap-1.5">
-                          <Badge
-                            tone={employee.is_active ? "success" : "neutral"}
+                      <td className="px-5 py-4">
+                        <div className="flex gap-3">
+                          <span
+                            aria-hidden="true"
+                            className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-xs font-bold text-brand-700"
                           >
-                            {employee.is_active ? "Aktif" : "Nonaktif"}
-                          </Badge>
-                          {employee.is_profile_complete === 0 ? (
-                            <Badge tone="warning">Belum lengkap</Badge>
-                          ) : null}
+                            {e.full_name
+                              .trim()
+                              .split(/\s+/)
+                              .slice(0, 2)
+                              .map((n) => n[0])
+                              .join("")
+                              .toUpperCase()}
+                          </span>
+                          <div className="min-w-0">
+                            <Link
+                              href={`/employees/${e.id}`}
+                              className="font-semibold text-slate-900 hover:text-brand-700"
+                            >
+                              {e.full_name}
+                            </Link>
+                            <p className="mt-0.5 text-xs text-slate-500">
+                              {e.employee_code}
+                            </p>
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              <Badge tone={e.is_active ? "success" : "neutral"}>
+                                {e.is_active ? "Aktif" : "Nonaktif"}
+                              </Badge>
+                              {e.is_profile_complete === 0 ? (
+                                <Badge tone="warning">Belum lengkap</Badge>
+                              ) : null}
+                            </div>
+                          </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-5 py-4">
                         <p className="font-medium text-slate-800">
-                          {employee.position_name}
+                          {e.position_name}
                         </p>
-                        <p className="text-xs text-slate-500">
-                          {employee.division_name}
+                        <p className="mt-1 text-xs text-slate-500">
+                          {e.division_name}
                         </p>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-5 py-4">
                         <p className="font-medium text-slate-800">
-                          {employee.brand_name}
+                          {e.brand_name}
                         </p>
-                        <p className="text-xs text-slate-500">
-                          {employee.company_name ?? "Perusahaan belum dipilih"}
+                        <p className="mt-1 text-xs text-slate-500">
+                          {e.company_name ?? "Perusahaan belum dipilih"}
+                        </p>
+                        <p className="mt-2 flex items-start gap-1 text-xs text-slate-500">
+                          <MapPin
+                            size={12}
+                            className="mt-0.5 shrink-0"
+                            aria-hidden="true"
+                          />
+                          {e.location_name}
                         </p>
                       </td>
-                      <td className="max-w-[220px] px-4 py-3 text-slate-700">
-                        {employee.location_name}
+                      <td className="whitespace-nowrap px-5 py-4 text-xs text-slate-600">
+                        {tenure(e.service_months)}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-slate-700">
-                        {employee.service_months === null
-                          ? "Belum diisi"
-                          : `${Math.floor(employee.service_months / 12)} thn ${employee.service_months % 12} bln`}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex min-w-[280px] flex-wrap justify-end gap-1.5">
-                          {canEditProfiles &&
-                          employee.is_active &&
-                          employee.is_profile_complete === 0 ? (
-                            <Link
-                              href={`/employees/${employee.id}?mode=edit`}
-                              className="inline-flex items-center rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
-                            >
-                              Lengkapi data
-                            </Link>
-                          ) : null}
+                      <td className="px-5 py-4">
+                        <div className="flex justify-end gap-2">
                           <Link
-                            href={`/employees/${employee.id}`}
-                            className="inline-flex items-center rounded-lg bg-brand-50 px-2.5 py-1.5 text-xs font-semibold text-brand-700 transition hover:bg-brand-100"
+                            href={`/employees/${e.id}`}
+                            className={buttonSecondary}
                           >
                             Detail
                           </Link>
-                          {canCreateLetter && employee.is_active ? (
-                            <EmployeeLetterLauncher
-                              employee={{
-                                id: employee.id,
-                                fullName: employee.full_name,
-                                employeeCode: employee.employee_code,
-                                positionName: employee.position_name,
-                                companyName:
-                                  employee.company_name ??
-                                  "Perusahaan belum dipilih",
-                                locationName: employee.location_name,
-                                joinDate: employee.join_date,
-                              }}
-                              availableTypes={[...LETTER_TYPES]}
-                              issuedDate={issuedDate}
-                              createAction={createLetterAction}
-                            />
-                          ) : null}
-                          {canViewLetters ? (
-                            <Link
-                              href={`/letters?employeeId=${employee.id}`}
-                              className="inline-flex items-center rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-                            >
-                              Riwayat surat
-                            </Link>
-                          ) : null}
+                          {rowActions(e)}
                         </div>
-                        {canDeactivate && employee.is_active ? (
-                          <EmployeeDeactivateMenu
-                            employeeId={employee.id}
-                            employeeName={employee.full_name}
-                            exitReasons={exitReasons}
-                            deactivateAction={deactivateEmployeeAction}
-                          />
-                        ) : null}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          )}
+          </>
+        )}
+        <div className="border-t border-slate-100 px-4 py-2 sm:px-5">
           <Pagination
             page={page}
             pageSize={PAGE_SIZE}
             total={employees.total}
             basePath="/employees"
-            query={{
-              search: search || undefined,
-              incomplete: incompleteOnly ? "1" : undefined,
-              brand: filters.brandId ? String(filters.brandId) : undefined,
-              company: filters.companyId
-                ? String(filters.companyId)
-                : undefined,
-              division: filters.divisionId
-                ? String(filters.divisionId)
-                : undefined,
-              location: filters.locationId
-                ? String(filters.locationId)
-                : undefined,
-              status,
-            }}
+            query={queryValues}
           />
-        </CardBody>
+        </div>
       </Card>
     </div>
   );
