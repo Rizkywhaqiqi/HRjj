@@ -143,7 +143,7 @@ export default function EmployeeForm({
           <FormField label="Alamat sesuai KTP">
             <textarea name="addressKtp" rows={3} className={inputClass} />
           </FormField>
-          <FormField label="Foto KTP (JPG/PNG, maksimal 5 MB)">
+          <FormField label="Foto KTP (JPG/PNG, maksimal 4 MB)">
             <input
               name="ktpPhoto"
               type="file"

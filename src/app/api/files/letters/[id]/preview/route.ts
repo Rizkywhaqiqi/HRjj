@@ -1,5 +1,5 @@
-import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { readStoredFile } from "@/core/storage/files";
 import { NextResponse } from "next/server";
 import type { RowDataPacket } from "mysql2/promise";
 import { queryRows } from "@/core/db";
@@ -43,7 +43,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   let data: Buffer;
   try {
-    data = await readFile(path.resolve(process.cwd(), "storage", "private", row.file_path));
+    data = await readStoredFile(`private/${row.file_path}`);
   } catch (error) {
     if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") {
       return NextResponse.json({ error: "File tidak tersedia" }, { status: 404 });
