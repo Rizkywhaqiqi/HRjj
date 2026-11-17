@@ -72,10 +72,22 @@ const positionsByDivision = {
 } as const;
 
 const exitReasons = [
-  { name: "Resign baik-baik (serah terima selesai)", severity: "GREEN", rehirable: true },
-  { name: "Kontrak selesai & layak diperpanjang", severity: "GREEN", rehirable: true },
+  {
+    name: "Resign baik-baik (serah terima selesai)",
+    severity: "GREEN",
+    rehirable: true,
+  },
+  {
+    name: "Kontrak selesai & layak diperpanjang",
+    severity: "GREEN",
+    rehirable: true,
+  },
   { name: "Pensiun", severity: "GREEN", rehirable: true },
-  { name: "PHK Efisiensi / Penutupan Cabang", severity: "GREEN", rehirable: true },
+  {
+    name: "PHK Efisiensi / Penutupan Cabang",
+    severity: "GREEN",
+    rehirable: true,
+  },
   { name: "Kontrak tidak diperpanjang", severity: "YELLOW", rehirable: true },
   { name: "Resign tanpa pemberitahuan", severity: "YELLOW", rehirable: true },
   { name: "Tidak lulus masa percobaan", severity: "YELLOW", rehirable: true },
@@ -106,18 +118,28 @@ const permissions = [
   ["employee.create", "employees", "Menambah data karyawan"],
   ["employee.update", "employees", "Mengubah data karyawan"],
   ["employee.deactivate", "employees", "Menonaktifkan karyawan"],
-  ["employee.view_sensitive", "employees", "Melihat NIK, NPWP, rekening, dan KTP"],
-  ["employee.view_private_fields", "employees", "Melihat data pribadi karyawan"],
+  [
+    "employee.view_sensitive",
+    "employees",
+    "Melihat NIK, NPWP, rekening, dan KTP",
+  ],
+  [
+    "employee.view_private_fields",
+    "employees",
+    "Melihat data pribadi karyawan",
+  ],
   ["employee.export", "employees", "Mengekspor data karyawan"],
   ["contract.view", "contracts", "Melihat kontrak"],
   ["contract.create", "contracts", "Membuat kontrak"],
   ["contract.update", "contracts", "Mengubah kontrak"],
-  ["contract.decide", "contracts", "Memutuskan perpanjangan atau akhir kontrak"],
+  [
+    "contract.decide",
+    "contracts",
+    "Memutuskan perpanjangan atau akhir kontrak",
+  ],
   ["contract.export", "contracts", "Mengekspor data kontrak"],
   ["letter.view", "letters", "Melihat surat"],
   ["letter.create", "letters", "Membuat surat"],
-  ["letter.approve", "letters", "Menyetujui surat"],
-  ["letter.issue", "letters", "Menerbitkan surat"],
   ["report.view", "reports", "Melihat laporan"],
   ["report.export", "reports", "Mengekspor laporan"],
   ["master_data.view", "master-data", "Melihat data master"],
@@ -128,19 +150,6 @@ const permissions = [
   ["role.manage", "roles", "Mengelola peran dan izin"],
   ["feature_flag.manage", "settings", "Mengelola saklar fitur"],
   ["audit.view", "audit", "Melihat audit log"],
-  ["recruitment.view", "recruitment", "Melihat recruitment"],
-  ["recruitment.manage", "recruitment", "Mengelola kandidat dan lamaran"],
-  ["recruitment.hire", "recruitment", "Mengonversi kandidat menjadi karyawan"],
-  ["recruitment.export", "recruitment", "Mengekspor data recruitment"],
-  ["vacancy.manage", "recruitment", "Mengelola lowongan"],
-  ["checklist.view", "checklists", "Melihat checklist"],
-  ["checklist.update", "checklists", "Memperbarui checklist"],
-  ["leave.view", "leave", "Melihat cuti dan izin"],
-  ["leave.manage", "leave", "Mengelola cuti dan izin"],
-  ["payroll.view", "payroll", "Melihat rekap payroll dan BPJS"],
-  ["payroll.manage", "payroll", "Mengelola rekap payroll dan BPJS"],
-  ["asset.view", "assets", "Melihat inventaris aset"],
-  ["asset.manage", "assets", "Mengelola inventaris aset"],
 ] as const;
 
 const allPermissionCodes = permissions.map(([code]) => code);
@@ -160,21 +169,11 @@ const employeeManagerPermissions = [
   "contract.export",
   "letter.view",
   "letter.create",
-  "letter.approve",
-  "letter.issue",
   "report.view",
   "report.export",
   "master_data.view",
   "master_data.manage",
   "audit.view",
-  "checklist.view",
-  "checklist.update",
-  "leave.view",
-  "leave.manage",
-  "payroll.view",
-  "payroll.manage",
-  "asset.view",
-  "asset.manage",
 ];
 
 const systemRoles = [
@@ -186,26 +185,15 @@ const systemRoles = [
   {
     name: "Head HRD",
     description: "Pengelolaan HR lintas brand dan persetujuan.",
-    permissions: [
-      ...employeeManagerPermissions,
-      "user.view",
-      "role.view",
-      "recruitment.view",
-      "recruitment.manage",
-      "recruitment.hire",
-      "recruitment.export",
-      "vacancy.manage",
-    ],
+    permissions: [...employeeManagerPermissions, "user.view", "role.view"],
   },
   {
     name: "Admin HRD",
     description: "Operasional data karyawan, kontrak, dan surat.",
     permissions: [
-      ...employeeManagerPermissions.filter((code) => code !== "master_data.manage"),
-      "recruitment.view",
-      "recruitment.manage",
-      "recruitment.hire",
-      "vacancy.manage",
+      ...employeeManagerPermissions.filter(
+        (code) => code !== "master_data.manage",
+      ),
     ],
   },
   {
@@ -220,8 +208,6 @@ const systemRoles = [
       "contract.view",
       "letter.view",
       "report.view",
-      "checklist.view",
-      "checklist.update",
     ],
   },
   {
@@ -235,18 +221,6 @@ const systemRoles = [
       "report.view",
     ],
   },
-  {
-    name: "Recruiter",
-    description: "Pengelolaan lowongan, kandidat, dan proses recruitment.",
-    permissions: [
-      "dashboard.view",
-      "recruitment.view",
-      "recruitment.manage",
-      "recruitment.hire",
-      "recruitment.export",
-      "vacancy.manage",
-    ],
-  },
 ] as const;
 
 const featureFlags = [
@@ -254,8 +228,6 @@ const featureFlags = [
   ["contracts", "Modul Kontrak"],
   ["letters", "Modul Surat"],
   ["reports", "Laporan HR"],
-  ["recruitment", "Recruitment"],
-  ["checklists", "Checklist Onboarding dan Offboarding"],
 ] as const;
 
 async function seedMasterData(): Promise<void> {
@@ -265,7 +237,9 @@ async function seedMasterData(): Promise<void> {
   });
 
   if (!adminResult.success) {
-    const invalidKeys = adminResult.error.issues.map((issue) => issue.path.join("."));
+    const invalidKeys = adminResult.error.issues.map((issue) =>
+      issue.path.join("."),
+    );
     throw new Error(
       `Set valid SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD (at least 16 characters) before seeding. Invalid: ${invalidKeys.join(", ")}`,
     );
@@ -323,7 +297,9 @@ async function seedMasterData(): Promise<void> {
       divisionIds.set(divisionName, division.id);
     }
 
-    for (const [divisionName, positionNames] of Object.entries(positionsByDivision)) {
+    for (const [divisionName, positionNames] of Object.entries(
+      positionsByDivision,
+    )) {
       const divisionId = divisionIds.get(divisionName);
       if (divisionId === undefined) {
         throw new Error(`Missing seeded division: ${divisionName}`);
@@ -454,10 +430,9 @@ async function seedMasterData(): Promise<void> {
           scope_all: number;
         }
       >
-    >(
-      "SELECT id, role_id, is_active, scope_all FROM users WHERE email = ?",
-      [adminEmail],
-    );
+    >("SELECT id, role_id, is_active, scope_all FROM users WHERE email = ?", [
+      adminEmail,
+    ]);
 
     if (existingAdminRows.length === 0) {
       await connection.execute(

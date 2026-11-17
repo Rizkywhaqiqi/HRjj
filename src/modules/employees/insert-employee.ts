@@ -127,12 +127,5 @@ export async function insertEmployeeRecord(
     ],
   );
 
-  if (options.createOnboardingChecklist !== false) {
-    await connection.execute(
-      "INSERT INTO checklist_items (employee_id, category, title) VALUES (?, 'ONBOARDING', 'Selesaikan proses onboarding')",
-      [result.insertId],
-    );
-  }
-
   return { employeeId: result.insertId, employeeCode };
 }

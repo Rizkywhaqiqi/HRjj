@@ -30,7 +30,7 @@ export interface NavSection {
  */
 export const NAV_SECTIONS: readonly NavSection[] = [
   {
-    label: "Dashboard",
+    label: "Ruang kerja HR",
     standalone: true,
     items: [
       {
@@ -39,11 +39,6 @@ export const NAV_SECTIONS: readonly NavSection[] = [
         icon: "dashboard",
         permission: PERMISSIONS.dashboardView,
       },
-    ],
-  },
-  {
-    label: "Utama",
-    items: [
       {
         label: "Karyawan",
         href: "/employees",
@@ -52,36 +47,18 @@ export const NAV_SECTIONS: readonly NavSection[] = [
         featureKey: "employees",
       },
       {
-        label: "Tambah karyawan",
-        href: "/employees/new",
-        icon: "users",
-        permission: PERMISSIONS.employeeCreate,
-        featureKey: "employees",
+        label: "Kontrak & pengingat",
+        href: "/contracts",
+        icon: "briefcase",
+        permission: PERMISSIONS.contractView,
+        featureKey: "contracts",
       },
       {
-        label: "Checklist",
-        href: "/checklists",
-        icon: "toggle",
-        permission: PERMISSIONS.checklistView,
-        featureKey: "checklists",
-      },
-      {
-        label: "Cuti & Izin",
-        href: "/leave",
-        icon: "toggle",
-        permission: PERMISSIONS.leaveView,
-      },
-      {
-        label: "Payroll & BPJS",
-        href: "/payroll",
+        label: "Surat & riwayat",
+        href: "/letters",
         icon: "history",
-        permission: PERMISSIONS.payrollView,
-      },
-      {
-        label: "Inventaris",
-        href: "/assets",
-        icon: "building",
-        permission: PERMISSIONS.assetView,
+        permission: PERMISSIONS.letterView,
+        featureKey: "letters",
       },
       {
         label: "Laporan",
@@ -90,51 +67,8 @@ export const NAV_SECTIONS: readonly NavSection[] = [
         permission: PERMISSIONS.reportView,
         featureKey: "reports",
       },
-    ],
-  },
-  {
-    label: "Dokumen HR",
-    items: [
       {
-        label: "Arsip Surat",
-        href: "/letters",
-        icon: "history",
-        permission: PERMISSIONS.letterView,
-        featureKey: "letters",
-      },
-      {
-        label: "Surat Peringatan",
-        href: "/warnings",
-        icon: "history",
-        permission: PERMISSIONS.employeeView,
-        featureKey: "employees",
-      },
-    ],
-  },
-  {
-    label: "Recruitment",
-    items: [
-      {
-        label: "Kandidat",
-        href: "/recruitment",
-        icon: "users",
-        permission: PERMISSIONS.recruitmentView,
-        featureKey: "recruitment",
-      },
-      {
-        label: "Lowongan Karir",
-        href: "/recruitment/vacancies",
-        icon: "briefcase",
-        permission: PERMISSIONS.vacancyManage,
-        featureKey: "recruitment",
-      },
-    ],
-  },
-  {
-    label: "Organisasi",
-    items: [
-      {
-        label: "Master Data",
+        label: "Master data",
         href: "/master-data",
         icon: "building",
         permission: PERMISSIONS.masterDataView,
@@ -151,19 +85,19 @@ export const NAV_SECTIONS: readonly NavSection[] = [
         permission: PERMISSIONS.userView,
       },
       {
-        label: "Peran & Izin",
+        label: "Peran & izin",
         href: "/settings/roles",
         icon: "shield",
         permission: PERMISSIONS.roleView,
       },
       {
-        label: "Saklar Fitur",
+        label: "Modul aplikasi",
         href: "/settings/feature-flags",
         icon: "toggle",
         permission: PERMISSIONS.featureFlagManage,
       },
       {
-        label: "Audit Log",
+        label: "Riwayat aktivitas",
         href: "/settings/audit-logs",
         icon: "history",
         permission: PERMISSIONS.auditView,
@@ -192,33 +126,27 @@ export const FEATURE_FLAGS: readonly FeatureFlagDefinition[] = [
   {
     key: "letters",
     label: "Modul Surat",
-    description: "Generator surat SP, SKK, kontrak, NDA, dan surat masih bekerja.",
+    description:
+      "Generator surat SP, SKK, kontrak, NDA, dan surat masih bekerja.",
   },
   {
     key: "reports",
     label: "Laporan HR",
     description: "Rekap dan ekspor laporan HR.",
   },
-  {
-    key: "recruitment",
-    label: "Recruitment",
-    description: "Lowongan, kandidat, dan proses seleksi.",
-  },
-  {
-    key: "checklists",
-    label: "Checklist Onboarding dan Offboarding",
-    description: "Checklist operasional saat karyawan masuk atau keluar.",
-  },
 ];
 
 /** Filters navigation with the permissions loaded into the session. */
-export async function visibleNavSections(permissions: readonly string[]): Promise<NavSection[]> {
+export async function visibleNavSections(
+  permissions: readonly string[],
+): Promise<NavSection[]> {
   const sections = await Promise.all(
     NAV_SECTIONS.map(async (section) => {
       const items = await Promise.all(
         section.items.map(async (item) => {
           if (!permissions.includes(item.permission)) return null;
-          if (item.featureKey && !(await isFeatureEnabled(item.featureKey))) return null;
+          if (item.featureKey && !(await isFeatureEnabled(item.featureKey)))
+            return null;
           return item;
         }),
       );

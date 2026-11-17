@@ -19,7 +19,9 @@ interface PermissionGroup {
   items: PermissionRow[];
 }
 
-export function groupPermissions(permissions: PermissionRow[]): PermissionGroup[] {
+export function groupPermissions(
+  permissions: PermissionRow[],
+): PermissionGroup[] {
   const groups = new Map<string, PermissionRow[]>();
 
   for (const permission of permissions) {
@@ -33,17 +35,12 @@ export function groupPermissions(permissions: PermissionRow[]): PermissionGroup[
 
 export function moduleLabel(module: string): string {
   const labels: Record<string, string> = {
-    assets: "Inventaris",
     audit: "Audit Log",
-    checklists: "Checklist",
     contracts: "Kontrak",
     dashboard: "Dashboard",
     employees: "Karyawan",
-    leave: "Cuti & Izin",
     letters: "Surat HR",
     "master-data": "Master Data",
-    payroll: "Payroll & BPJS",
-    recruitment: "Recruitment",
     reports: "Laporan",
     roles: "Peran & Izin",
     settings: "Pengaturan",
@@ -98,7 +95,11 @@ function PermissionCheckboxes({
   );
 }
 
-export function RoleCreateForm({ permissions }: { permissions: PermissionRow[] }) {
+export function RoleCreateForm({
+  permissions,
+}: {
+  permissions: PermissionRow[];
+}) {
   return (
     <details className="rounded-2xl border border-slate-200 bg-white shadow-sm">
       <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-brand-700">
@@ -190,7 +191,8 @@ export function RoleManageForm({
           <div>
             <p className={labelClass}>Modul & izin peran</p>
             <p className="mt-1 text-xs text-slate-500">
-              Centang izin yang diperlukan, lalu simpan dengan tombol di bagian bawah daftar.
+              Centang izin yang diperlukan, lalu simpan dengan tombol di bagian
+              bawah daftar.
             </p>
           </div>
           <div className="rounded-xl border border-slate-200 p-3">
@@ -202,7 +204,9 @@ export function RoleManageForm({
             />
           </div>
           {permissionsLocked ? (
-            <p className="text-xs text-slate-500">Izin Super Admin dikunci dan tidak dapat diubah.</p>
+            <p className="text-xs text-slate-500">
+              Izin Super Admin dikunci dan tidak dapat diubah.
+            </p>
           ) : (
             <SubmitButton>Simpan modul & izin</SubmitButton>
           )}

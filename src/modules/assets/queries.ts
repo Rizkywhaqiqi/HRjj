@@ -1,5 +1,0 @@
-import type { RowDataPacket } from "mysql2/promise";
-import { queryRows } from "@/core/db";
-import type { SessionUser } from "@/types/database";
-export interface AssetItem extends RowDataPacket { id: number; asset_code: string; name: string; category: string; serial_number: string | null; status: string; company_name: string | null; employee_name: string | null; }
-export function listAssets(user: SessionUser): Promise<AssetItem[]> { const scope = user.scopeAll ? { clause: "1=1", params: [] as (string | number | null)[] } : user.brandIds.length === 0 ? { clause: "1=0", params: [] as (string | number | null)[] } : { clause: `(a.company_id IS NULL OR c.brand_id IN (${user.brandIds.map(() => "?").join(", ")}))`, params: user.brandIds as (string | number | null)[] }; return queryRows<AssetItem>(`SELECT a.id, a.asset_code, a.name, a.category, a.serial_number, a.status, c.name AS company_name, e.full_name AS employee_name FROM assets a LEFT JOIN companies c ON c.id=a.company_id LEFT JOIN employees e ON e.id=a.assigned_employee_id WHERE ${scope.clause} ORDER BY a.status, a.name`, scope.params); }

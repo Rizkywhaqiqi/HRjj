@@ -1,6 +1,0 @@
-import type { RowDataPacket } from "mysql2/promise";
-import { queryRows } from "@/core/db";
-export interface SelfLeave extends RowDataPacket { id: number; leave_type_name: string; start_date: string; end_date: string; reason: string | null; status: string; }
-export function listSelfLeaves(employeeId: number): Promise<SelfLeave[]> { return queryRows<SelfLeave>(`SELECT r.id, t.name AS leave_type_name, r.start_date, r.end_date, r.reason, r.status FROM leave_requests r INNER JOIN leave_types t ON t.id=r.leave_type_id WHERE r.employee_id=? ORDER BY r.start_date DESC`, [employeeId]); }
-export interface SelfProfile extends RowDataPacket { employee_code: string; full_name: string; email: string; phone: string | null; company_name: string | null; position_name: string; location_name: string; }
-export function getSelfProfile(employeeId: number): Promise<SelfProfile | null> { return queryRows<SelfProfile>(`SELECT e.employee_code, e.full_name, ea.email, e.phone, c.name AS company_name, p.name AS position_name, l.name AS location_name FROM employees e INNER JOIN employee_accounts ea ON ea.employee_id=e.id LEFT JOIN companies c ON c.id=e.company_id INNER JOIN positions p ON p.id=e.position_id INNER JOIN locations l ON l.id=e.location_id WHERE e.id=? LIMIT 1`, [employeeId]).then((rows) => rows[0] ?? null); }

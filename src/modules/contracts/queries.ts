@@ -4,8 +4,20 @@ import { brandScope, directBrandScope } from "@/core/rbac/scope";
 import type { SessionUser } from "@/types/database";
 
 export interface ContractListItem extends RowDataPacket {
-  id: number; employee_id: number; full_name: string; employee_code: string; company_name: string; brand_name: string;
-  contract_type_id: number; contract_type_name: string; start_date: string | Date; end_date: string | Date | null; base_salary: string | null; status: string; letter_id: number | null;
+  id: number;
+  employee_id: number;
+  full_name: string;
+  employee_code: string;
+  company_name: string;
+  brand_name: string;
+  contract_type_id: number;
+  contract_type_name: string;
+  start_date: string | Date;
+  end_date: string | Date | null;
+  base_salary: string | null;
+  status: string;
+  letter_id: number | null;
+  days_remaining: number | null;
 }
 
 export interface ContractEmployeeContext extends RowDataPacket {
@@ -31,12 +43,14 @@ export async function getContractEmployeeContext(
   return rows[0] ?? null;
 }
 
-export async function listContracts(user: SessionUser): Promise<ContractListItem[]> {
+export async function listContracts(
+  user: SessionUser,
+): Promise<ContractListItem[]> {
   const scope = brandScope(user, "co.id");
   return queryRows<ContractListItem>(
     `SELECT ct.id, ct.employee_id, ct.letter_id, e.full_name, e.employee_code, co.name AS company_name,
             b.name AS brand_name, ct.contract_type_id, ty.name AS contract_type_name,
-            ct.start_date, ct.end_date, ct.base_salary, ct.status
+            ct.start_date, ct.end_date, ct.base_salary, ct.status, DATEDIFF(ct.end_date,DATE(CONVERT_TZ(UTC_TIMESTAMP(),'+00:00','+07:00'))) AS days_remaining
      FROM contracts ct INNER JOIN employees e ON e.id = ct.employee_id
      INNER JOIN companies co ON co.id = e.company_id INNER JOIN brands b ON b.id = co.brand_id
      INNER JOIN contract_types ty ON ty.id = ct.contract_type_id

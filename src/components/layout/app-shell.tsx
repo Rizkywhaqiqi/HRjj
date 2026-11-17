@@ -18,7 +18,9 @@ function BrandMark() {
         <p className="text-xs font-bold tracking-[0.16em] text-brand-700">
           JOJO GROUP
         </p>
-        <p className="text-xs font-medium text-slate-500">HR Space</p>
+        <p className="text-xs font-medium text-slate-500">
+          Dokumentasi karyawan
+        </p>
       </div>
     </div>
   );
@@ -73,7 +75,7 @@ export function AppShell({
 }) {
   return (
     <div className="min-h-screen bg-surface lg:grid lg:grid-cols-[17rem_minmax(0,1fr)]">
-      <aside className="hidden border-r border-slate-200 bg-white lg:flex lg:min-h-screen lg:flex-col">
+      <aside className="hidden border-r border-slate-200 bg-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
         <div className="px-5 py-5">
           <BrandMark />
         </div>
