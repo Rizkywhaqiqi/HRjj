@@ -217,7 +217,7 @@ export async function updateCandidateProfileAction(formData: FormData): Promise<
   const cv = formData.get("cv");
   let cvPath: string | undefined;
   if (cv instanceof File && cv.size > 0) {
-    if (cv.size > MAX_UPLOAD_BYTES || cv.type !== "application/pdf") error("/kandidat/profile", "CV harus PDF dan maksimal 4 MB.");
+    if (cv.size > MAX_UPLOAD_BYTES || cv.type !== "application/pdf") error("/kandidat/profile", "CV harus PDF dan maksimal 1,5 MB.");
     const bytes = Buffer.from(await cv.arrayBuffer());
     if (bytes.subarray(0, 4).toString("ascii") !== "%PDF") error("/kandidat/profile", "Isi file CV bukan PDF yang valid.");
     const name = `${randomUUID()}.pdf`;

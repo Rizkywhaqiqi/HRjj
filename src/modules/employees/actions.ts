@@ -48,7 +48,7 @@ export async function createEmployeeAction(formData: FormData): Promise<void> {
   let ktpPhotoPath: string | null = null;
   if (ktp instanceof File && ktp.size > 0) {
     if (ktp.size > MAX_UPLOAD_BYTES || !["image/jpeg", "image/png"].includes(ktp.type)) {
-      failCreate("Foto KTP harus JPG/PNG dan maksimal 4 MB.");
+      failCreate("Foto KTP harus JPG/PNG dan maksimal 1,5 MB.");
     }
     const bytes = Buffer.from(await ktp.arrayBuffer());
     const validJpeg = bytes.subarray(0, 3).toString("hex") === "ffd8ff";
@@ -134,7 +134,7 @@ export async function updateEmployeeAction(formData: FormData): Promise<void> {
   const ktp = formData.get("ktpPhoto");
   let ktpPhotoPath: string | undefined;
   if (ktp instanceof File && ktp.size > 0) {
-    if (ktp.size > MAX_UPLOAD_BYTES || !["image/jpeg", "image/png"].includes(ktp.type)) fail("Foto KTP harus JPG/PNG dan maksimal 4 MB.");
+    if (ktp.size > MAX_UPLOAD_BYTES || !["image/jpeg", "image/png"].includes(ktp.type)) fail("Foto KTP harus JPG/PNG dan maksimal 1,5 MB.");
     const bytes = Buffer.from(await ktp.arrayBuffer());
     const validJpeg = bytes.subarray(0, 3).toString("hex") === "ffd8ff";
     const validPng = bytes.subarray(0, 8).toString("hex") === "89504e470d0a1a0a";
