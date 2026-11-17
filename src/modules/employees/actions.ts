@@ -164,7 +164,37 @@ export async function createEmployeePortalAccountAction(formData: FormData): Pro
   const employee = (await queryRows<EmployeeBrandRow>("SELECT brand_id FROM employees WHERE id=? AND is_active=TRUE LIMIT 1", [parsed.data.employeeId]))[0];
   if (!employee) fail("Karyawan aktif tidak ditemukan.");
   assertBrandAccess(actor, employee.brand_id);
-  try { await executeSql(`INSERT INTO employee_accounts (employee_id, email, password_hash) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE email=VALUES(email), password_hash=VALUES(password_hash), session_version=session_version+1, is_active=TRUE`, [parsed.data.employeeId, parsed.data.email, await hashPassword(parsed.data.temporaryPassword)]); } catch { fail("Email portal sudah digunakan."); }
+  const passwordHash = await hashPassword(parsed.data.temporaryPassword);
+  try {
+    await withTransaction(async (connection) => {
+      // Serialize account creation for this employee, including the first account.
+      const [employees] = await connection.execute<EmployeeBrandRow[]>(
+        "SELECT brand_id FROM employees WHERE id=? AND is_active=TRUE FOR UPDATE",
+        [parsed.data.employeeId],
+      );
+      if (!employees[0]) throw new Error("EMPLOYEE_NOT_FOUND");
+      assertBrandAccess(actor, employees[0].brand_id);
+      const [accounts] = await connection.execute<RowDataPacket[]>(
+        "SELECT id FROM employee_accounts WHERE employee_id=? FOR UPDATE",
+        [parsed.data.employeeId],
+      );
+      if (accounts[0]) {
+        await connection.execute(
+          "UPDATE employee_accounts SET email=?, password_hash=?, session_version=session_version+1, is_active=TRUE WHERE id=? AND employee_id=?",
+          [parsed.data.email, passwordHash, accounts[0].id, parsed.data.employeeId],
+        );
+      } else {
+        // A duplicate email must fail; it must never reset another employee's account.
+        await connection.execute(
+          "INSERT INTO employee_accounts (employee_id, email, password_hash) VALUES (?, ?, ?)",
+          [parsed.data.employeeId, parsed.data.email, passwordHash],
+        );
+      }
+    });
+  } catch (error) {
+    const code = typeof error === "object" && error !== null ? (error as { code?: string }).code : undefined;
+    fail(code === "ER_DUP_ENTRY" ? "Email portal sudah digunakan." : "Akun portal gagal disimpan.");
+  }
   await logAudit({ userId: actor.id, action: "employee.portal_account.create", entityType: "employee_account", entityId: parsed.data.employeeId, details: { employeeId: parsed.data.employeeId } });
   done("Akun portal karyawan berhasil dibuat atau diperbarui.");
 }
