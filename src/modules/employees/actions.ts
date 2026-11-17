@@ -1,7 +1,7 @@
 "use server";
 
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
-import { MAX_UPLOAD_BYTES, putStoredFile } from "@/core/storage/files";
+import { MAX_UPLOAD_BYTES, putStoredFile, deleteStoredFile } from "@/core/storage/files";
 import { randomUUID } from "node:crypto";
 import { executeSql, queryRows, withTransaction } from "@/core/db";
 import { createBlindIndex, encryptField } from "@/core/crypto/field-encrypt";
@@ -106,6 +106,7 @@ export async function createEmployeeAction(formData: FormData): Promise<void> {
       },
     });
   } catch (error) {
+    if (ktpPhotoPath) await deleteStoredFile(`private/${ktpPhotoPath}`).catch(() => console.error("[storage] Failed to clean uncommitted upload"));
     const code =
       typeof error === "object" && error !== null
         ? (error as { code?: string }).code
@@ -218,6 +219,15 @@ export async function updateEmployeeAction(formData: FormData): Promise<void> {
       fail("Kombinasi jabatan dan lokasi tidak valid untuk brand karyawan.");
   }
   assertBrandAccess(actor, brandId);
+  const sensitiveFieldsProvided =
+    formData.has("npwp") ||
+    formData.has("bankName") ||
+    formData.has("bankAccountNumber");
+  if (
+    sensitiveFieldsProvided &&
+    !actor.permissions.includes(PERMISSIONS.employeeViewSensitive)
+  )
+    fail("Anda tidak memiliki izin mengubah data sensitif.");
   const ktp = formData.get("ktpPhoto");
   let ktpPhotoPath: string | undefined;
   if (ktp instanceof File && ktp.size > 0) {
@@ -234,15 +244,6 @@ export async function updateEmployeeAction(formData: FormData): Promise<void> {
     ktpPhotoPath = `ktp/${randomUUID()}.${validPng ? "png" : "jpg"}`;
     await putStoredFile(`private/${ktpPhotoPath}`, bytes);
   }
-  const sensitiveFieldsProvided =
-    formData.has("npwp") ||
-    formData.has("bankName") ||
-    formData.has("bankAccountNumber");
-  if (
-    sensitiveFieldsProvided &&
-    !actor.permissions.includes(PERMISSIONS.employeeViewSensitive)
-  )
-    fail("Anda tidak memiliki izin mengubah data sensitif.");
   const sensitiveSet = sensitiveFieldsProvided
     ? ", e.npwp_encrypted=?, e.bank_name=?, e.bank_account_encrypted=?"
     : "";
@@ -253,7 +254,9 @@ export async function updateEmployeeAction(formData: FormData): Promise<void> {
         data.bankAccountNumber ? encryptField(data.bankAccountNumber) : null,
       ]
     : [];
-  const result = await executeSql(
+  let result: ResultSetHeader;
+  try {
+  result = await executeSql(
     `UPDATE employees e SET e.employee_code=?, e.full_name=?, e.birth_place=?, e.birth_date=?, e.address_current=?, e.address_ktp=?, e.email=?, e.phone=?${sensitiveSet}, e.marital_status=?, e.children_count=?, e.company_id=?, e.brand_id=?, e.position_id=?, e.location_id=?, e.join_date=?${ktpPhotoPath ? ", e.ktp_photo_path=?" : ""}${data.nik ? ", e.nik_encrypted=?, e.nik_hash=?" : ""} WHERE e.id=? AND (? OR e.brand_id IN (SELECT brand_id FROM user_brand_access WHERE user_id=?))`,
     [
       data.employeeCode,
@@ -279,8 +282,14 @@ export async function updateEmployeeAction(formData: FormData): Promise<void> {
       actor.id,
     ],
   );
-  if (result.affectedRows !== 1)
+  } catch {
+    if (ktpPhotoPath) await deleteStoredFile(`private/${ktpPhotoPath}`).catch(() => console.error("[storage] Failed to clean uncommitted upload"));
+    fail("Gagal memperbarui karyawan. Periksa kode dan NIK yang mungkin sudah digunakan.");
+  }
+  if (result.affectedRows !== 1) {
+    if (ktpPhotoPath) await deleteStoredFile(`private/${ktpPhotoPath}`).catch(() => console.error("[storage] Failed to clean uncommitted upload"));
     fail("Karyawan tidak ditemukan atau di luar scope Anda.");
+  }
   await logAudit({
     userId: actor.id,
     action: "employee.update",

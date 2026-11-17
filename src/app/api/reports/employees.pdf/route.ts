@@ -1,7 +1,8 @@
+import { PassThrough, Readable } from "node:stream";
 import { NextResponse } from "next/server";
 import { requireFeatureEnabled, requirePermission } from "@/core/rbac/guard";
 import { PERMISSIONS } from "@/core/rbac/permissions";
-import { listEmployeeReport } from "@/modules/reports";
+import { iterateEmployeeReport, employeeReportSummary } from "@/modules/reports/queries";
 import { reportAccess } from "@/modules/reports/access";
 import { reportFilters } from "@/modules/reports/filters";
 import { renderEmployeeReportPdf } from "@/modules/reports/pdf";
@@ -17,8 +18,8 @@ export async function GET(request: Request) {
   await requireFeatureEnabled("reports");
   const access = reportAccess(actor);
   const filters = reportFilters(new URL(request.url).searchParams);
-  const [rows, brands, companies, divisions, locations] = await Promise.all([
-    listEmployeeReport(actor, filters, access),
+  const [summary, brands, companies, divisions, locations] = await Promise.all([
+    employeeReportSummary(actor, filters),
     listBrandOptions(actor),
     listCompanyOptions(actor),
     listDivisionOptions(),
@@ -46,14 +47,13 @@ export async function GET(request: Request) {
     ]
       .filter(Boolean)
       .join(" | ") || "Semua karyawan dalam akses brand Anda";
-  const pdf = await renderEmployeeReportPdf(rows, access, filterDescription);
-  await logAudit({
-    userId: actor.id,
-    action: "security.export",
-    entityType: "employee_report",
-    details: { format: "pdf", rowCount: rows.length, ...access },
-  });
-  return new NextResponse(new Uint8Array(pdf), {
+  const output = new PassThrough();
+  const produce = async () => {
+    await renderEmployeeReportPdf(iterateEmployeeReport(actor, filters, access), access, filterDescription, Number(summary.total), output);
+    await logAudit({ userId: actor.id, action: "security.export", entityType: "employee_report", details: { format: "pdf", rowCount: Number(summary.total), ...access } });
+  };
+  void produce().catch((error: Error) => output.destroy(error));
+  return new NextResponse(Readable.toWeb(output) as ReadableStream<Uint8Array>, {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": "attachment; filename=employee-report.pdf",

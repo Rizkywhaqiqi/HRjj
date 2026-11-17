@@ -253,12 +253,21 @@ export async function POST(request: Request) {
       });
     const employeeIds = await withTransaction(async (connection) => {
       const created: number[] = [];
+      const organizations = new Map<string, RowDataPacket[]>();
+      async function organization<T extends RowDataPacket>(sql: string, params: (number | null)[]): Promise<T[]> {
+        const key = JSON.stringify([sql, params]);
+        const cached = organizations.get(key);
+        if (cached) return cached as T[];
+        const [result] = await connection.execute<T[]>(sql + " FOR SHARE", params);
+        organizations.set(key, result);
+        return result;
+      }
       for (const row of rows) {
         const data = row.data as EmployeeImportInput;
         let brandId: number;
         if (data.companyId !== null) {
           const org = (
-            await queryRows<OrgRow>(
+            await organization<OrgRow>(
               `SELECT c.brand_id, l.brand_id AS location_brand_id,
                     c.is_active AS company_is_active, p.is_active AS position_is_active,
                     l.is_active AS location_is_active
@@ -283,7 +292,7 @@ export async function POST(request: Request) {
           brandId = org.brand_id;
         } else {
           const org = (
-            await queryRows<BrandOrgRow>(
+            await organization<BrandOrgRow>(
               `SELECT b.id AS brand_id, l.brand_id AS location_brand_id,
                     p.is_active AS position_is_active, l.is_active AS location_is_active
              FROM brands b

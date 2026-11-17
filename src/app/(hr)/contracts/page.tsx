@@ -1,3 +1,5 @@
+import { Pagination, parsePage } from "@/components/shared/pagination";
+import { countContracts } from "@/modules/contracts/queries";
 import Link from "next/link";
 import { contractReminder } from "@/modules/contracts/reminders";
 import { listLetterEmployees } from "@/modules/letters";
@@ -38,6 +40,8 @@ export default async function ContractsPage({
   const actor = await requirePermission(PERMISSIONS.contractView);
   await requireFeatureEnabled("contracts");
   const params = await searchParams;
+  const page = parsePage(params.page);
+  const total = await countContracts(actor);
   const rawEmployeeId = firstParam(params.employeeId);
   const parsedEmployeeId = Number(rawEmployeeId);
   const selectedEmployeeId =
@@ -51,7 +55,7 @@ export default async function ContractsPage({
     selectedEmployee,
     employeeOptions,
   ] = await Promise.all([
-    listContracts(actor),
+    listContracts(actor, page, 25),
     listContractTypes(),
     listExitReasons(),
     selectedEmployeeId
@@ -372,6 +376,7 @@ export default async function ContractsPage({
               </tbody>
             </table>
           </div>
+          <Pagination page={page} pageSize={25} total={total} basePath="/contracts" query={{ employeeId: selectedEmployeeId ? String(selectedEmployeeId) : undefined }} />
         </CardBody>
       </Card>
     </div>

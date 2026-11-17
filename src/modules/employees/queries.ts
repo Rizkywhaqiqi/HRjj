@@ -1,3 +1,4 @@
+import { employeeSearch } from "./search";
 import type { RowDataPacket } from "mysql2/promise";
 import { queryRows, type SqlValue } from "@/core/db";
 import { directBrandScope } from "@/core/rbac/scope";
@@ -121,19 +122,9 @@ export async function listEmployees(
   } else if (filters.status === "inactive") {
     clauses.push("e.is_active = FALSE");
   }
-  const normalizedSearch = search.trim().replace(/\s+/g, " ").slice(0, 80);
-  if (normalizedSearch.length === 1) {
-    clauses.push("1 = 0");
-  } else if (normalizedSearch.length >= 2) {
-    // Prefix matching lets MySQL use the indexed employee code, phone, and
-    // name columns instead of scanning every employee for `%term%` matches.
-    const escapedTerm = normalizedSearch.replace(/[\\%_]/g, "\\$&");
-    const term = `${escapedTerm}%`;
-    clauses.push(
-      "(e.employee_code LIKE ? OR e.full_name LIKE ? OR e.phone LIKE ?)",
-    );
-    params.push(term, term, term);
-  }
+  const searchFilter = employeeSearch(search);
+  clauses.push(searchFilter.clause);
+  params.push(...searchFilter.params);
 
   const where = `WHERE ${clauses.join(" AND ")}`;
   const offset = (page - 1) * pageSize;

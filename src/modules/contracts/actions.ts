@@ -1,5 +1,7 @@
 "use server";
 
+import { nextContractDate } from "./date";
+
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { queryRows, withTransaction } from "@/core/db";
 import { logAudit } from "@/core/audit/log";
@@ -25,11 +27,6 @@ interface EmployeeContractRow extends RowDataPacket {
 interface ContractTypeRow extends RowDataPacket {
   id: number;
   is_permanent: 0 | 1;
-}
-function nextDate(value: string): string {
-  const date = new Date(`${value}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + 1);
-  return date.toISOString().slice(0, 10);
 }
 
 export async function createContractAction(formData: FormData): Promise<void> {
@@ -131,6 +128,7 @@ export async function createContractAction(formData: FormData): Promise<void> {
 
 export async function decideContractAction(formData: FormData): Promise<void> {
   const actor = await requirePermission(PERMISSIONS.contractDecide);
+  await requireFeatureEnabled("contracts");
   const parsed = contractDecisionSchema.safeParse(
     Object.fromEntries(formData.entries()),
   );
@@ -139,13 +137,14 @@ export async function decideContractAction(formData: FormData): Promise<void> {
   try {
     await withTransaction(async (connection) => {
       const [rows] = await connection.execute<RowDataPacket[]>(
-        `SELECT ct.id, ct.employee_id, ct.end_date, e.is_active, c.brand_id FROM contracts ct INNER JOIN employees e ON e.id = ct.employee_id INNER JOIN companies c ON c.id = e.company_id WHERE ct.id = ? AND ct.status = 'RUNNING' FOR UPDATE`,
+        `SELECT ct.id, ct.employee_id, DATE_FORMAT(ct.end_date, '%Y-%m-%d') AS end_date, ct.base_salary, e.is_active, c.brand_id FROM contracts ct INNER JOIN employees e ON e.id = ct.employee_id INNER JOIN companies c ON c.id = e.company_id WHERE ct.id = ? AND ct.status = 'RUNNING' FOR UPDATE`,
         [data.contractId],
       );
       const contract = rows[0] as
         | (RowDataPacket & {
             employee_id: number;
             end_date: string | null;
+            base_salary: string | null;
             is_active: 0 | 1;
             brand_id: number;
           })
@@ -158,7 +157,7 @@ export async function decideContractAction(formData: FormData): Promise<void> {
           !contract.end_date ||
           !data.newStartDate ||
           !data.newEndDate ||
-          data.newStartDate !== nextDate(contract.end_date) ||
+          data.newStartDate !== nextContractDate(contract.end_date) ||
           data.newEndDate < data.newStartDate
         )
           throw new Error("CONTRACT_DATE_INVALID");
@@ -174,13 +173,14 @@ export async function decideContractAction(formData: FormData): Promise<void> {
           [data.contractId],
         );
         await connection.execute(
-          "INSERT INTO contracts (employee_id, contract_type_id, previous_contract_id, start_date, end_date, status) VALUES (?, ?, ?, ?, ?, 'RUNNING')",
+          "INSERT INTO contracts (employee_id, contract_type_id, previous_contract_id, start_date, end_date, base_salary, status) VALUES (?, ?, ?, ?, ?, ?, 'RUNNING')",
           [
             contract.employee_id,
             data.newContractTypeId,
             data.contractId,
             data.newStartDate,
             data.newEndDate,
+            contract.base_salary,
           ],
         );
       } else if (data.decision === "PERMANENT") {
@@ -193,8 +193,8 @@ export async function decideContractAction(formData: FormData): Promise<void> {
         );
         if (!types[0]) throw new Error("PERMANENT_TYPE_NOT_FOUND");
         await connection.execute(
-          "INSERT INTO contracts (employee_id, contract_type_id, previous_contract_id, start_date, end_date, status) VALUES (?, ?, ?, DATE_ADD(COALESCE((SELECT end_date FROM contracts WHERE id = ?), CURDATE()), INTERVAL 1 DAY), NULL, 'RUNNING')",
-          [contract.employee_id, types[0].id, data.contractId, data.contractId],
+          "INSERT INTO contracts (employee_id, contract_type_id, previous_contract_id, start_date, end_date, base_salary, status) VALUES (?, ?, ?, DATE_ADD(COALESCE((SELECT end_date FROM contracts WHERE id = ?), CURDATE()), INTERVAL 1 DAY), NULL, ?, 'RUNNING')",
+          [contract.employee_id, types[0].id, data.contractId, data.contractId, contract.base_salary],
         );
       } else {
         if (!data.exitReasonId) throw new Error("EXIT_REASON_REQUIRED");

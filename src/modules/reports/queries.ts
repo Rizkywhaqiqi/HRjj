@@ -1,3 +1,4 @@
+import { employeeSearch } from "@/modules/employees/search";
 import type { RowDataPacket } from "mysql2/promise";
 import { queryRows } from "@/core/db";
 import { directBrandScope } from "@/core/rbac/scope";
@@ -41,6 +42,7 @@ export interface EmployeeReportRow extends RowDataPacket {
 export interface EmployeeReportOptions {
   includePrivate?: boolean;
   includeSensitive?: boolean;
+  afterId?: number;
   page?: number;
   pageSize?: number;
 }
@@ -60,6 +62,10 @@ export async function listEmployeeReport(
   const includeSensitive =
     allowed.includeSensitive && options.includeSensitive !== false;
   const { clauses, params } = reportWhere(user, filters);
+  if (options.afterId !== undefined) {
+    clauses.push("e.id > ?");
+    params.push(options.afterId);
+  }
   const pageSize = Math.min(
     100,
     Math.max(1, Math.floor(options.pageSize ?? 25)),
@@ -73,7 +79,7 @@ export async function listEmployeeReport(
       bank_account_encrypted: string | null;
     }
   >(
-    `SELECT e.employee_code, e.full_name, b.name AS brand_name, c.name AS company_name,
+    `SELECT e.id, e.employee_code, e.full_name, b.name AS brand_name, c.name AS company_name,
             d.name AS division_name, p.name AS position_name, l.name AS location_name,
             DATE_FORMAT(e.join_date, '%Y-%m-%d') join_date, e.is_active, DATE_FORMAT(e.exit_date, '%Y-%m-%d') exit_date,TIMESTAMPDIFF(MONTH,e.join_date,COALESCE(e.exit_date,CURDATE())) service_months,
             ${includePrivate ? "e.blood_type,e.mother_name,e.religion,er.name exit_reason_name,e.birth_place, DATE_FORMAT(e.birth_date, '%Y-%m-%d') AS birth_date, e.address_current, e.address_ktp, e.email, e.phone, e.marital_status, e.children_count," : "NULL AS blood_type,NULL AS mother_name,NULL AS religion,NULL AS exit_reason_name,NULL AS birth_place, NULL AS birth_date, NULL AS address_current, NULL AS address_ktp, NULL AS email, NULL AS phone, NULL AS marital_status, NULL AS children_count,"}
@@ -86,7 +92,7 @@ export async function listEmployeeReport(
      INNER JOIN divisions d ON d.id=p.division_id
      INNER JOIN locations l ON l.id=e.location_id
      WHERE ${clauses.join(" AND ")}
-     ORDER BY b.name, e.full_name, e.id${paginated ? " LIMIT ? OFFSET ?" : ""}`,
+     ORDER BY ${options.afterId !== undefined ? "e.id" : "b.name, e.full_name, e.id"}${paginated ? " LIMIT ? OFFSET ?" : ""}`,
     paginated ? [...params, pageSize, (page - 1) * pageSize] : params,
   );
   return rows.map(
@@ -105,13 +111,9 @@ function reportWhere(user: SessionUser, filters: EmployeeListFilters) {
   const scope = directBrandScope(user, "e.brand_id");
   const clauses = [scope.clause];
   const params = [...scope.params];
-  if (filters.search?.trim()) {
-    clauses.push(
-      "(e.full_name LIKE ? OR e.employee_code LIKE ? OR e.phone LIKE ?)",
-    );
-    const term = `%${filters.search.trim()}%`;
-    params.push(term, term, term);
-  }
+  const search = employeeSearch(filters.search ?? "");
+  clauses.push(search.clause);
+  params.push(...search.params);
   if (filters.brandId) {
     clauses.push("e.brand_id = ?");
     params.push(filters.brandId);
@@ -150,4 +152,15 @@ export async function employeeReportSummary(
     params,
   );
   return rows[0];
+}
+
+export async function* iterateEmployeeReport(user: SessionUser, filters: EmployeeListFilters, options: EmployeeReportOptions) {
+  let afterId = 0;
+  while (true) {
+    const rows = await listEmployeeReport(user, filters, { ...options, page: 1, pageSize: 100, afterId });
+    if (!rows.length) return;
+    for (const row of rows) yield row;
+    afterId = Number(rows[rows.length - 1].id);
+    if (rows.length < 100) return;
+  }
 }

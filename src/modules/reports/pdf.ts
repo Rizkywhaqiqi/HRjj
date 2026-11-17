@@ -1,28 +1,36 @@
+import type { Writable } from "node:stream";
+import { once } from "node:events";
 import PDFDocument from "pdfkit";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { reportColumns, projectReportRow, type ReportAccess } from "./access";
 export async function renderEmployeeReportPdf(
-  rows: Record<string, unknown>[],
+  rows: Record<string, unknown>[] | AsyncIterable<Record<string, unknown>>,
   access: ReportAccess,
   filterDescription: string,
+  total = Array.isArray(rows) ? rows.length : 0,
+  output?: Writable,
 ): Promise<Buffer> {
   const doc = new PDFDocument({
     size: "A4",
     margin: 42,
-    bufferPages: true,
+    bufferPages: false,
     info: { Title: "Laporan karyawan", Author: "JOJO HR Space" },
   });
   const chunks: Buffer[] = [];
   const result = new Promise<Buffer>((resolve, reject) => {
-    doc.on("data", (b: Buffer) => chunks.push(b));
+    if (output) doc.pipe(output);
+    else doc.on("data", (b: Buffer) => chunks.push(b));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
   });
   const width = doc.page.width - 84;
   const bottom = doc.page.height - 52;
   let currentEmployee = "";
+  let pageNumber = 0;
   const header = () => {
+    pageNumber++;
+    doc.font("Helvetica").fontSize(8).fillColor("#64748b").text(`JOJO HR Space | Halaman ${pageNumber}`, 42, doc.page.height - 30, { lineBreak: false });
     const logo = join(process.cwd(), "public", "images", "jojo-logo.jpg");
     if (existsSync(logo)) doc.image(logo, 42, 31, { fit: [36, 48] });
     doc
@@ -39,7 +47,7 @@ export async function renderEmployeeReportPdf(
       .fontSize(8)
       .fillColor("#64748b")
       .text(
-        `${rows.length} karyawan | Data dasar${access.includePrivate ? " + pribadi" : ""}${access.includeSensitive ? " + sensitif" : ""}`,
+        `${total} karyawan | Data dasar${access.includePrivate ? " + pribadi" : ""}${access.includeSensitive ? " + sensitif" : ""}`,
         42,
         77,
         { lineBreak: false },
@@ -97,14 +105,15 @@ export async function renderEmployeeReportPdf(
   write(`Filter: ${filterDescription}`);
   doc.y += 8;
   const columns = reportColumns(access);
-  rows.forEach((row, index) => {
+  let index = 0;
+  for await (const row of rows) {
     const data = projectReportRow(row, access);
     currentEmployee = `${data.employee_code} - ${data.full_name}`;
     if (doc.y + 50 > bottom) {
       doc.addPage();
       header();
     }
-    write(`${index + 1}. ${currentEmployee}`, true);
+    write(`${++index}. ${currentEmployee}`, true);
     doc.y += 3;
     for (const column of columns) {
       if (column.key === "employee_code" || column.key === "full_name")
@@ -112,22 +121,9 @@ export async function renderEmployeeReportPdf(
       write(`${column.label}: ${data[column.key] || "Belum diisi"}`);
     }
     doc.y += 12;
-  });
-  if (!rows.length) write("Tidak ada data karyawan yang sesuai filter.");
-  const range = doc.bufferedPageRange();
-  for (let i = range.start; i < range.start + range.count; i++) {
-    doc.switchToPage(i);
-    doc
-      .font("Helvetica")
-      .fontSize(8)
-      .fillColor("#64748b")
-      .text(
-        `JOJO HR Space | Halaman ${i + 1} dari ${range.count}`,
-        42,
-        doc.page.height - 30,
-        { lineBreak: false },
-      );
+    if (output?.writableNeedDrain) await once(output, "drain");
   }
+  if (!index) write("Tidak ada data karyawan yang sesuai filter.");
   doc.end();
   return result;
 }

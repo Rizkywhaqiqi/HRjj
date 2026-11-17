@@ -73,13 +73,6 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  if (isAuthPage && sessionValid) {
-    const dashboardUrl = request.nextUrl.clone();
-    dashboardUrl.pathname = "/dashboard";
-    dashboardUrl.search = "";
-    return NextResponse.redirect(dashboardUrl);
-  }
-
   return NextResponse.next();
 }
 

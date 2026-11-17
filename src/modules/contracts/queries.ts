@@ -45,6 +45,8 @@ export async function getContractEmployeeContext(
 
 export async function listContracts(
   user: SessionUser,
+  page = 1,
+  pageSize = 25,
 ): Promise<ContractListItem[]> {
   const scope = brandScope(user, "co.id");
   return queryRows<ContractListItem>(
@@ -54,7 +56,14 @@ export async function listContracts(
      FROM contracts ct INNER JOIN employees e ON e.id = ct.employee_id
      INNER JOIN companies co ON co.id = e.company_id INNER JOIN brands b ON b.id = co.brand_id
      INNER JOIN contract_types ty ON ty.id = ct.contract_type_id
-     WHERE ${scope.clause} ORDER BY ct.status = 'RUNNING' DESC, ct.end_date IS NULL, ct.end_date`,
-    scope.params,
+     WHERE ${scope.clause} ORDER BY ct.status = 'RUNNING' DESC, ct.end_date IS NULL, ct.end_date, ct.id LIMIT ? OFFSET ?`,
+    [...scope.params, pageSize, (page - 1) * pageSize],
   );
+}
+
+export async function countContracts(user: SessionUser): Promise<number> {
+  const scope = brandScope(user, "co.id");
+  const rows = await queryRows<RowDataPacket & { total: number }>(
+    `SELECT COUNT(*) total FROM contracts ct JOIN employees e ON e.id=ct.employee_id JOIN companies co ON co.id=e.company_id JOIN contract_types ty ON ty.id=ct.contract_type_id WHERE ${scope.clause}`, scope.params);
+  return Number(rows[0]?.total ?? 0);
 }
