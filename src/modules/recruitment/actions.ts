@@ -1,8 +1,8 @@
 "use server";
 
-import { redirect } from "next/navigation";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { redirect } from "next/navigation";
+import { deleteStoredFile, MAX_UPLOAD_BYTES, putStoredFile } from "@/core/storage/files";
 import { createHash, randomUUID } from "node:crypto";
 import { headers } from "next/headers";
 import { executeSql, queryRows, withTransaction } from "@/core/db";
@@ -200,7 +200,7 @@ export async function anonymizeCandidateAccountAction(formData: FormData): Promi
       await connection.execute("UPDATE candidate_accounts SET full_name=?, email=?, phone=?, is_active=FALSE, session_version=session_version+1 WHERE id=?", [anonymizedName, anonymizedEmail, anonymizedPhone, candidate.accountId]);
       return cvPath;
     });
-    if (removedCvPath && removedCvPath.startsWith("cv/") && !removedCvPath.includes("..")) await unlink(path.resolve(process.cwd(), "storage", "private", removedCvPath)).catch(() => undefined);
+    if (removedCvPath && removedCvPath.startsWith("cv/") && !removedCvPath.includes("..")) await deleteStoredFile(`private/${removedCvPath}`).catch(() => undefined);
   } catch (err) {
     if (err instanceof Error && err.message === "CANDIDATE_RETAINED") error("/kandidat", "Akun yang sudah menjadi karyawan harus dipertahankan sesuai kebijakan retensi.");
     error("/kandidat", "Anonimisasi akun gagal.");
@@ -217,14 +217,12 @@ export async function updateCandidateProfileAction(formData: FormData): Promise<
   const cv = formData.get("cv");
   let cvPath: string | undefined;
   if (cv instanceof File && cv.size > 0) {
-    if (cv.size > 5 * 1024 * 1024 || cv.type !== "application/pdf") error("/kandidat/profile", "CV harus PDF dan maksimal 5 MB.");
+    if (cv.size > MAX_UPLOAD_BYTES || cv.type !== "application/pdf") error("/kandidat/profile", "CV harus PDF dan maksimal 4 MB.");
     const bytes = Buffer.from(await cv.arrayBuffer());
     if (bytes.subarray(0, 4).toString("ascii") !== "%PDF") error("/kandidat/profile", "Isi file CV bukan PDF yang valid.");
     const name = `${randomUUID()}.pdf`;
     cvPath = `cv/${name}`;
-    const absolute = path.resolve(process.cwd(), "storage", "private", cvPath);
-    await mkdir(path.dirname(absolute), { recursive: true });
-    await writeFile(absolute, bytes, { flag: "wx" });
+    await putStoredFile(`private/${cvPath}`, bytes);
   }
   try {
     await withTransaction(async (connection) => {

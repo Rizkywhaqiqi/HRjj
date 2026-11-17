@@ -257,8 +257,6 @@ CREATE TABLE IF NOT EXISTS employees (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_emp_company_active (company_id, is_active),
-  INDEX idx_emp_brand_active_name (brand_id, is_active, full_name),
-  INDEX idx_emp_full_name (full_name),
   INDEX idx_emp_position (position_id),
   INDEX idx_emp_location (location_id),
   INDEX idx_emp_email (email),

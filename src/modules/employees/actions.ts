@@ -1,8 +1,7 @@
 "use server";
 
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { MAX_UPLOAD_BYTES, putStoredFile } from "@/core/storage/files";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { executeSql, queryRows, withTransaction } from "@/core/db";
@@ -48,17 +47,15 @@ export async function createEmployeeAction(formData: FormData): Promise<void> {
   const ktp = formData.get("ktpPhoto");
   let ktpPhotoPath: string | null = null;
   if (ktp instanceof File && ktp.size > 0) {
-    if (ktp.size > 5 * 1024 * 1024 || !["image/jpeg", "image/png"].includes(ktp.type)) {
-      failCreate("Foto KTP harus JPG/PNG dan maksimal 5 MB.");
+    if (ktp.size > MAX_UPLOAD_BYTES || !["image/jpeg", "image/png"].includes(ktp.type)) {
+      failCreate("Foto KTP harus JPG/PNG dan maksimal 4 MB.");
     }
     const bytes = Buffer.from(await ktp.arrayBuffer());
     const validJpeg = bytes.subarray(0, 3).toString("hex") === "ffd8ff";
     const validPng = bytes.subarray(0, 8).toString("hex") === "89504e470d0a1a0a";
     if (!validJpeg && !validPng) failCreate("Isi file foto KTP tidak valid.");
     ktpPhotoPath = `ktp/${randomUUID()}.${validPng ? "png" : "jpg"}`;
-    const absolutePath = path.resolve(process.cwd(), "storage", "private", ktpPhotoPath);
-    await mkdir(path.dirname(absolutePath), { recursive: true });
-    await writeFile(absolutePath, bytes, { flag: "wx" });
+    await putStoredFile(`private/${ktpPhotoPath}`, bytes);
   }
 
   try {
@@ -137,15 +134,13 @@ export async function updateEmployeeAction(formData: FormData): Promise<void> {
   const ktp = formData.get("ktpPhoto");
   let ktpPhotoPath: string | undefined;
   if (ktp instanceof File && ktp.size > 0) {
-    if (ktp.size > 5 * 1024 * 1024 || !["image/jpeg", "image/png"].includes(ktp.type)) fail("Foto KTP harus JPG/PNG dan maksimal 5 MB.");
+    if (ktp.size > MAX_UPLOAD_BYTES || !["image/jpeg", "image/png"].includes(ktp.type)) fail("Foto KTP harus JPG/PNG dan maksimal 4 MB.");
     const bytes = Buffer.from(await ktp.arrayBuffer());
     const validJpeg = bytes.subarray(0, 3).toString("hex") === "ffd8ff";
     const validPng = bytes.subarray(0, 8).toString("hex") === "89504e470d0a1a0a";
     if (!validJpeg && !validPng) fail("Isi file foto KTP tidak valid.");
     ktpPhotoPath = `ktp/${randomUUID()}.${validPng ? "png" : "jpg"}`;
-    const absolutePath = path.resolve(process.cwd(), "storage", "private", ktpPhotoPath);
-    await mkdir(path.dirname(absolutePath), { recursive: true });
-    await writeFile(absolutePath, bytes, { flag: "wx" });
+    await putStoredFile(`private/${ktpPhotoPath}`, bytes);
   }
   const sensitiveFieldsProvided = formData.has("npwp") || formData.has("bankName") || formData.has("bankAccountNumber");
   if (sensitiveFieldsProvided && !actor.permissions.includes(PERMISSIONS.employeeViewSensitive)) fail("Anda tidak memiliki izin mengubah data sensitif.");

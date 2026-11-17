@@ -66,7 +66,7 @@ Akun Super Admin awal dibuat dari `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` d
 - `src/core` → infrastruktur bersama (db, env, auth, rbac, crypto, audit); tidak boleh mengimpor `src/modules/*`.
 - `src/types` → tipe database dan sesi.
 - `database/` → skema, migrasi bernomor, seeder.
-- `storage/private/` → file privat (KTP, CV) di luar `public/`.
+- `src/core/storage/files.ts` → file privat di Cloudflare R2; folder `storage/` hanya untuk pengembangan lokal.
 
 ## Catatan Next.js 16
 
@@ -77,3 +77,21 @@ Akun Super Admin awal dibuat dari `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` d
 
 - **Fase 0** selesai dan terverifikasi: fondasi proyek, skema + migrasi bernomor, seeder, serta typecheck/lint/build.
 - Fase 1 dan seterusnya mengikuti roadmap pada blueprint.
+
+## Penyimpanan privat Cloudflare R2
+
+CV, foto KTP, template DOCX, dan surat hasil generate menggunakan bucket privat.
+Aplikasi tetap memeriksa sesi, izin, dan scope sebelum mengambil file melalui endpoint internal; bucket tidak perlu domain publik atau CORS.
+
+1. Buat bucket Standard privat `hrjojo-private`; pastikan r2.dev dan custom domain publik nonaktif.
+2. Buat token **Object Read & Write** yang dibatasi ke bucket tersebut.
+3. Di Vercel, isi `FILE_STORAGE=r2`, `R2_ACCOUNT_ID`, `R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID`, dan `R2_SECRET_ACCESS_KEY` untuk environment yang diperlukan. Simpan kedua key sebagai secret server; jangan memakai awalan `NEXT_PUBLIC_`. Kredensial preview sebaiknya memakai bucket terpisah jika preview digunakan untuk uji data bebas.
+4. Jalankan `npm run storage:check` dengan environment R2 terisi. Tes ini membuat file dummy acak, memeriksa baca dan larangan overwrite, lalu menghapusnya.
+5. Sebelum deployment pertama, salin file lama dari mesin yang masih menyimpan folder `storage/`. `npm run storage:migrate` hanya menghitung file (dry-run); `npm run storage:migrate -- --apply` menyalin dan memverifikasi checksum. `LEGACY_STORAGE_ROOT` dapat menunjuk folder lama. File lokal tidak dihapus dan object berbeda tidak ditimpa.
+6. Deploy setelah konfigurasi dan penyalinan selesai. Tidak ada perubahan skema atau seed database. Nilai path dalam database tetap sama; key R2 memakai prefix `private/` atau `templates/letters/`.
+
+File lama yang sudah hilang dari filesystem deployment sebelumnya tidak dapat dibuat kembali hanya dari path database. Pulihkan dari sumber/backup sebelum beralih. Pada Vercel, storage gagal tertutup jika kredensial belum tersedia; tidak ada fallback lokal yang dapat menyembunyikan kesalahan konfigurasi.
+
+Batas unggah melalui Server Actions adalah **4 MiB per file**; request diberi ruang untuk metadata multipart di bawah batas payload Vercel. Batas ini berlaku untuk CV, KTP, dan template DOCX. Untuk file yang lebih besar, gunakan alur direct upload terautentikasi terpisah.
+
+Pemeriksaan: `npm run test:storage`, `npm run typecheck`, `npm run lint`, dan `npm run build`. Jangan menjalankan migrasi database untuk perubahan storage ini.

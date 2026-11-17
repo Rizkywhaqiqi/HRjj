@@ -13,9 +13,13 @@
     "db:stage-employees": "tsx scripts/stage-employee-import.ts",
     "db:activate-employees": "tsx scripts/activate-current-employees.ts",
     "db:reencrypt": "tsx scripts/reencrypt-sensitive-fields.ts",
-    "env:init": "node scripts/generate-dev-env.mjs"
+    "env:init": "node scripts/generate-dev-env.mjs",
+    "test:storage": "node --import tsx --test tests/storage.test.ts",
+    "storage:check": "node --import tsx scripts/check-r2-storage.ts",
+    "storage:migrate": "node --import tsx scripts/migrate-files-to-r2.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1170.0",
     "bcryptjs": "^3.0.2",
     "docx-preview": "^0.4.1",
     "docxtemplater": "^3.71.1",

@@ -1,6 +1,6 @@
 "use server";
 
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { deleteStoredFile, MAX_UPLOAD_BYTES, putStoredFile, readStoredFile } from "@/core/storage/files";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import PizZip from "pizzip";
@@ -59,7 +59,7 @@ export async function uploadLetterTemplateAction(formData: FormData): Promise<vo
   if (!parsed.success) fail(firstIssueMessage(parsed.error));
   const file = formData.get("template");
   if (!(file instanceof File) || file.size === 0) fail("File template DOCX wajib dipilih.");
-  if (file.size > 10 * 1024 * 1024 || file.type !== "application/vnd.openxmlformats-officedocument.wordprocessingml.document") fail("Template harus DOCX dan maksimal 10 MB.");
+  if (file.size > MAX_UPLOAD_BYTES || file.type !== "application/vnd.openxmlformats-officedocument.wordprocessingml.document") fail("Template harus DOCX dan maksimal 4 MB.");
   const bytes = Buffer.from(await file.arrayBuffer());
   try {
     const zip = new PizZip(bytes);
@@ -72,10 +72,8 @@ export async function uploadLetterTemplateAction(formData: FormData): Promise<vo
     assertBrandAccess(actor, Number(rows[0].brand_id));
   }
   const filePath = `${randomUUID()}.docx`;
-  const absolutePath = path.resolve(process.cwd(), "storage", "templates", "letters", filePath);
   try {
-    await mkdir(path.dirname(absolutePath), { recursive: true });
-    await writeFile(absolutePath, bytes, { flag: "wx" });
+    await putStoredFile(`templates/letters/${filePath}`, bytes);
     const versions = await queryRows<RowDataPacket>("SELECT COALESCE(MAX(version), 0) + 1 AS next_version FROM letter_templates WHERE type=? AND (company_id=? OR (company_id IS NULL AND ? IS NULL))", [parsed.data.type, companyId, companyId]);
     await executeSql("INSERT INTO letter_templates (type, company_id, name, file_path, version) VALUES (?, ?, ?, ?, ?)", [parsed.data.type, companyId, parsed.data.name, filePath, Number(versions[0]?.next_version ?? 1)]);
   } catch { fail("Template gagal disimpan."); }
@@ -151,10 +149,6 @@ export async function createLetterAction(formData: FormData): Promise<void> {
   if (template && (path.isAbsolute(template.file_path) || template.file_path.includes("..") || !template.file_path.endsWith(".docx"))) {
     fail("Template surat tidak valid.", formPath);
   }
-  const templatePath = template
-    ? path.resolve(process.cwd(), "storage", "templates", "letters", template.file_path)
-    : null;
-  const outputDir = path.resolve(process.cwd(), "storage", "private", "letters");
   let metadata: Record<string, unknown> = {};
   if (data.metadata) {
     let parsedMetadata: unknown;
@@ -205,8 +199,8 @@ export async function createLetterAction(formData: FormData): Promise<void> {
       }
     : {};
   try {
-    const content = templatePath
-      ? await readFile(templatePath)
+    const content = template
+      ? await readStoredFile(`templates/letters/${template.file_path}`)
       : createBuiltInOfferLetterTemplate();
     const zip = new PizZip(content);
     const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
@@ -224,7 +218,6 @@ export async function createLetterAction(formData: FormData): Promise<void> {
       issued_date: formatLetterDate(data.issuedDate),
     });
     const output = doc.getZip().generate({ type: "nodebuffer" });
-    await mkdir(outputDir, { recursive: true });
     const result = await withTransaction(async (connection) => {
       let letterNumber: string;
       if (employee.company_id !== null) {
@@ -236,7 +229,7 @@ export async function createLetterAction(formData: FormData): Promise<void> {
       } else {
         letterNumber = `${employee.brand_code}/${data.type}/${new Date(data.issuedDate).getFullYear()}/NO-CV-${randomUUID().slice(0, 8).toUpperCase()}`;
       }
-      const relativePath = `letters/${employee.company_id ?? "no-company"}-${letterNumber.replaceAll("/", "-")}.docx`;
+      const relativePath = `letters/${employee.company_id ?? "no-company"}-${letterNumber.replaceAll("/", "-")}-${randomUUID()}.docx`;
       const [insert] = await connection.execute<ResultSetHeader>(`INSERT INTO letters (letter_number, type, employee_id, company_id, template_id, file_path, status, issued_date, metadata, created_by) VALUES (?, ?, ?, ?, ?, ?, 'ISSUED', ?, ?, ?)`, [letterNumber, data.type, employee.employee_id, employee.company_id, template?.id ?? null, relativePath, data.issuedDate, JSON.stringify(storedMetadata), actor.id]);
       if (linkContract && contract) {
         const [linked] = await connection.execute<ResultSetHeader>(
@@ -247,9 +240,8 @@ export async function createLetterAction(formData: FormData): Promise<void> {
       }
       return { id: insert.insertId, relativePath };
     });
-    const outputPath = path.resolve(process.cwd(), "storage", "private", result.relativePath);
     try {
-      await writeFile(outputPath, output);
+      await putStoredFile(`private/${result.relativePath}`, output);
     } catch (writeError) {
       try {
         await withTransaction(async (connection) => {
@@ -258,7 +250,7 @@ export async function createLetterAction(formData: FormData): Promise<void> {
           }
           await connection.execute("DELETE FROM letters WHERE id=? AND status='ISSUED'", [result.id]);
         });
-        await unlink(outputPath);
+        await deleteStoredFile(`private/${result.relativePath}`);
       } catch (cleanupError) {
         if (!(typeof cleanupError === "object" && cleanupError !== null && "code" in cleanupError && cleanupError.code === "ENOENT")) {
           console.error("[letters] failed generation cleanup", {
@@ -367,7 +359,7 @@ export async function deleteLetterAction(formData: FormData): Promise<void> {
 
   let fileCleanupFailed = false;
   try {
-    await unlink(path.resolve(process.cwd(), "storage", "private", letter.file_path));
+    await deleteStoredFile(`private/${letter.file_path}`);
   } catch (error) {
     if (typeof error === "object" && error !== null && "code" in error && error.code !== "ENOENT") {
       fileCleanupFailed = true;

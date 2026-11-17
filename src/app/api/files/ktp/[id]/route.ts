@@ -1,5 +1,4 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
+import { readStoredFile } from "@/core/storage/files";
 import { NextResponse } from "next/server";
 import type { RowDataPacket } from "mysql2/promise";
 import { queryRows } from "@/core/db";
@@ -18,9 +17,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const relative = rows[0]?.ktp_photo_path;
   if (!relative || !relative.startsWith("ktp/") || relative.includes("..")) return NextResponse.json({ error: "Not found" }, { status: 404 });
   try {
-    const data = await readFile(path.resolve(process.cwd(), "storage", "private", relative));
+    const data = await readStoredFile(`private/${relative}`);
     await logAudit({ userId: actor.id, action: "security.sensitive_read", entityType: "employee_ktp", entityId: id, details: { access: "download" } });
     const type = relative.endsWith(".png") ? "image/png" : "image/jpeg";
-    return new NextResponse(data, { headers: { "Content-Type": type, "Content-Disposition": "inline; filename=ktp-image", "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
+    return new NextResponse(new Uint8Array(data), { headers: { "Content-Type": type, "Content-Disposition": "inline; filename=ktp-image", "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
   } catch { return NextResponse.json({ error: "File tidak tersedia" }, { status: 404 }); }
 }
