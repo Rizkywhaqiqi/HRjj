@@ -74,7 +74,7 @@ export async function decideContractAction(formData: FormData): Promise<void> {
   const data = parsed.data;
   try {
     await withTransaction(async (connection) => {
-      const [rows] = await connection.execute<RowDataPacket[]>(`SELECT ct.id, ct.employee_id, ct.end_date, e.is_active, c.brand_id FROM contracts ct INNER JOIN employees e ON e.id = ct.employee_id INNER JOIN companies c ON c.id = e.company_id WHERE ct.id = ? AND ct.status = 'RUNNING' FOR UPDATE`, [data.contractId]);
+      const [rows] = await connection.execute<RowDataPacket[]>(`SELECT ct.id, ct.employee_id, DATE_FORMAT(ct.end_date, '%Y-%m-%d') AS end_date, e.is_active, c.brand_id FROM contracts ct INNER JOIN employees e ON e.id = ct.employee_id INNER JOIN companies c ON c.id = e.company_id WHERE ct.id = ? AND ct.status = 'RUNNING' FOR UPDATE`, [data.contractId]);
       const contract = rows[0] as (RowDataPacket & { employee_id: number; end_date: string | null; is_active: 0 | 1; brand_id: number }) | undefined;
       if (!contract || !contract.is_active) throw new Error("CONTRACT_NOT_FOUND");
       assertBrandAccess(actor, contract.brand_id);
