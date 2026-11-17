@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   buttonPrimary,
   buttonSecondary,
   inputClass,
 } from "@/components/ui/primitives";
+import { AnchoredPopover } from "@/components/ui/anchored-popover";
 import type { LetterType } from "@/modules/letters/schema";
 
 const LETTER_TYPES: { value: LetterType; label: string }[] = [
@@ -39,6 +40,8 @@ export default function EmployeeLetterLauncher({
 }: EmployeeLetterLauncherProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedType, setSelectedType] = useState<LetterType | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
 
   useEffect(() => {
     if (!selectedType) return;
@@ -54,46 +57,51 @@ export default function EmployeeLetterLauncher({
 
   return (
     <>
-      <div className="relative">
-        <button
-          type="button"
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((open) => !open)}
-          className="inline-flex min-h-10 items-center rounded-xl border border-brand-200 px-3 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
-        >
-          Buat surat
-          <span className="ml-2" aria-hidden="true">⌄</span>
-        </button>
-        {menuOpen ? (
-          <div
-            className="absolute bottom-full left-0 z-30 mb-2 w-64 rounded-xl border border-slate-200 bg-white p-2 shadow-xl"
-          >
-            <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Pilih jenis surat
-            </p>
-            {LETTER_TYPES.map((item) => {
-              const available = availableTypes.includes(item.value);
-              return (
-                <button
-                  key={item.value}
-                  type="button"
-                  disabled={!available}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setSelectedType(item.value);
-                  }}
-                  className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
-                >
-                  <span>{item.label}</span>
-                  {!available ? (
-                    <span className="shrink-0 text-[11px]">Template belum ada</span>
-                  ) : null}
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
-      </div>
+      <button
+        ref={menuButtonRef}
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        onClick={() => setMenuOpen((open) => !open)}
+        className="inline-flex min-h-10 items-center rounded-xl border border-brand-200 px-3 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-50"
+      >
+        Buat surat
+        <span className="ml-2" aria-hidden="true">⌄</span>
+      </button>
+      <AnchoredPopover
+        open={menuOpen}
+        onClose={closeMenu}
+        anchorRef={menuButtonRef}
+        align="end"
+        width={288}
+        className="p-2"
+        ariaLabel="Pilih jenis surat"
+      >
+        <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Pilih jenis surat
+        </p>
+        {LETTER_TYPES.map((item) => {
+          const available = availableTypes.includes(item.value);
+          return (
+            <button
+              key={item.value}
+              type="button"
+              role="menuitem"
+              disabled={!available}
+              onClick={() => {
+                setMenuOpen(false);
+                setSelectedType(item.value);
+              }}
+              className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
+            >
+              <span>{item.label}</span>
+              {!available ? (
+                <span className="shrink-0 text-[11px]">Template belum ada</span>
+              ) : null}
+            </button>
+          );
+        })}
+      </AnchoredPopover>
 
       {selectedType ? (
         <div
