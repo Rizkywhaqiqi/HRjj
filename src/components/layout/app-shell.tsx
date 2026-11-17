@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
-import { BriefcaseBusiness, KeyRound, LogOut } from "lucide-react";
+import { KeyRound, LogOut } from "lucide-react";
 import type { NavSection } from "@/core/module-registry";
 import type { SessionUser } from "@/types/database";
 import { logoutAction } from "@/modules/users/actions";
+import { BrandLogo } from "@/components/ui/brand-logo";
 import { Badge, cn } from "@/components/ui/primitives";
 import { MobileNav } from "./mobile-nav";
 import { NavSectionGroups } from "./nav-section-groups";
@@ -11,9 +12,7 @@ import { NavSectionGroups } from "./nav-section-groups";
 function BrandMark() {
   return (
     <div className="flex items-center gap-3">
-      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-sm">
-        <BriefcaseBusiness aria-hidden="true" size={19} />
-      </div>
+      <BrandLogo className="w-16" sizes="64px" />
       <div>
         <p className="text-xs font-bold tracking-[0.16em] text-brand-700">
           JOJO GROUP

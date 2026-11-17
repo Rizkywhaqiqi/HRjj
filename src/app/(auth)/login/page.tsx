@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { BriefcaseBusiness } from "lucide-react";
+import { BrandLogo } from "@/components/ui/brand-logo";
 import { getSessionUser } from "@/core/auth/session";
 import { sanitizeNextPath } from "@/core/http/navigation";
 import {
@@ -31,9 +31,7 @@ export default async function LoginPage({
     <Card>
       <CardBody className="space-y-6">
         <div className="space-y-3 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-lg shadow-brand-600/20">
-            <BriefcaseBusiness aria-hidden="true" size={22} />
-          </div>
+          <BrandLogo className="mx-auto w-36" sizes="144px" />
           <div>
             <p className="text-sm font-semibold tracking-tight text-brand-700">
               JOJO HR Space
