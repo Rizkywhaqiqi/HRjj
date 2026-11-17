@@ -5,6 +5,8 @@ import { countIncompleteEmployees, countPendingEmployeeStaging, listEmployees, d
 import { createLetterAction, listLetterTemplates } from "@/modules/letters";
 import type { LetterType } from "@/modules/letters/schema";
 import { listExitReasons } from "@/modules/master-data";
+import { listBrandOptions, listCompanyOptions, listDivisionOptions, listLocations } from "@/modules/master-data";
+import type { EmployeeListFilters } from "@/modules/employees/queries";
 import { Card, CardBody, CardHeader, PageHeader, Badge, EmptyState, inputClass, buttonDanger, buttonSecondary } from "@/components/ui/primitives";
 import { FlashAlerts, readFlash } from "@/components/shared/flash";
 import { firstParam } from "@/components/shared/format";
@@ -52,6 +54,19 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
   const search = firstParam(params.search) ?? "";
   const incompleteOnly = firstParam(params.incomplete) === "1";
   const page = parsePage(params.page);
+  const brandId = Number(firstParam(params.brand));
+  const companyId = Number(firstParam(params.company));
+  const divisionId = Number(firstParam(params.division));
+  const locationId = Number(firstParam(params.location));
+  const rawStatus = firstParam(params.status);
+  const status: EmployeeListFilters["status"] = rawStatus === "active" || rawStatus === "inactive" ? rawStatus : undefined;
+  const filters: EmployeeListFilters = {
+    brandId: Number.isSafeInteger(brandId) && brandId > 0 ? brandId : undefined,
+    companyId: Number.isSafeInteger(companyId) && companyId > 0 ? companyId : undefined,
+    divisionId: Number.isSafeInteger(divisionId) && divisionId > 0 ? divisionId : undefined,
+    locationId: Number.isSafeInteger(locationId) && locationId > 0 ? locationId : undefined,
+    status,
+  };
   const canCreate = hasPermission(actor, PERMISSIONS.employeeCreate);
   const canEditProfiles =
     hasPermission(actor, PERMISSIONS.employeeUpdate) &&
@@ -61,15 +76,18 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
     hasPermission(actor, PERMISSIONS.letterView) &&
     await isFeatureEnabled("letters");
   const canCreateLetter = canViewLetters && hasPermission(actor, PERMISSIONS.letterCreate);
-  const [employees, exitReasons, incompleteCount, stagingCount] = await Promise.all([
-    listEmployees(actor, search, incompleteOnly, page, PAGE_SIZE),
+  const canExport = hasPermission(actor, PERMISSIONS.reportExport);
+  const [employees, exitReasons, incompleteCount, stagingCount, brands, companies, divisions, locations, letterTemplates] = await Promise.all([
+    listEmployees(actor, search, incompleteOnly, page, PAGE_SIZE, filters),
     listExitReasons(),
     countIncompleteEmployees(actor),
     canCreate ? countPendingEmployeeStaging(actor, "") : Promise.resolve(0),
+    listBrandOptions(actor),
+    listCompanyOptions(actor),
+    listDivisionOptions(),
+    listLocations(actor),
+    canCreateLetter ? listLetterTemplates(actor) : Promise.resolve([]),
   ]);
-  const letterTemplates = canCreateLetter
-    ? await listLetterTemplates(actor)
-    : [];
   const issuedDate = todayInJakarta();
   return (
     <div>
@@ -105,7 +123,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
           description={`${employees.total} karyawan ditemukan`}
         />
         <CardBody>
-          <form method="get" className="mb-5 flex flex-col gap-2 sm:flex-row">
+          <form method="get" className="mb-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <input
               name="search"
               defaultValue={search}
@@ -114,10 +132,46 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
               className={inputClass}
             />
             {incompleteOnly ? <input type="hidden" name="incomplete" value="1" /> : null}
-            <button type="submit" className={buttonSecondary}>Cari karyawan</button>
-            {search ? (
-              <Link href={incompleteOnly ? "/employees?incomplete=1" : "/employees"} className={buttonSecondary}>Hapus pencarian</Link>
-            ) : null}
+            <select name="brand" defaultValue={filters.brandId ?? ""} className={inputClass} aria-label="Filter brand">
+              <option value="">Semua brand</option>
+              {brands.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+            <select name="company" defaultValue={filters.companyId ?? ""} className={inputClass} aria-label="Filter CV">
+              <option value="">Semua CV</option>
+              {companies.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+            <select name="division" defaultValue={filters.divisionId ?? ""} className={inputClass} aria-label="Filter divisi">
+              <option value="">Semua divisi</option>
+              {divisions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+            <select name="location" defaultValue={filters.locationId ?? ""} className={inputClass} aria-label="Filter lokasi">
+              <option value="">Semua lokasi</option>
+              {locations.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+            <select name="status" defaultValue={status ?? ""} className={inputClass} aria-label="Filter status">
+              <option value="">Semua status</option>
+              <option value="active">Aktif</option>
+              <option value="inactive">Nonaktif</option>
+            </select>
+            <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-4">
+              <button type="submit" className={buttonSecondary}>Terapkan filter</button>
+              {search || filters.brandId || filters.companyId || filters.divisionId || filters.locationId || status || incompleteOnly ? (
+                <Link href="/employees" className={buttonSecondary}>Reset filter</Link>
+              ) : null}
+              {canExport ? (
+                <Link
+                  href={`/api/reports/employees.pdf?${new URLSearchParams({
+                    ...(search ? { search } : {}),
+                    ...(filters.brandId ? { brand: String(filters.brandId) } : {}),
+                    ...(filters.companyId ? { company: String(filters.companyId) } : {}),
+                    ...(filters.divisionId ? { division: String(filters.divisionId) } : {}),
+                    ...(filters.locationId ? { location: String(filters.locationId) } : {}),
+                    ...(status ? { status } : {}),
+                  }).toString()}`}
+                  className={buttonSecondary}
+                >Export PDF</Link>
+              ) : null}
+            </div>
           </form>
 
           {employees.employees.length === 0 ? (
@@ -250,7 +304,15 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
             pageSize={PAGE_SIZE}
             total={employees.total}
             basePath="/employees"
-            query={{ search: search || undefined, incomplete: incompleteOnly ? "1" : undefined }}
+            query={{
+              search: search || undefined,
+              incomplete: incompleteOnly ? "1" : undefined,
+              brand: filters.brandId ? String(filters.brandId) : undefined,
+              company: filters.companyId ? String(filters.companyId) : undefined,
+              division: filters.divisionId ? String(filters.divisionId) : undefined,
+              location: filters.locationId ? String(filters.locationId) : undefined,
+              status,
+            }}
           />
         </CardBody>
       </Card>

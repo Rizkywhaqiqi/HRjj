@@ -22,6 +22,7 @@ export interface EmployeeListItem extends RowDataPacket {
   exit_date: string | Date | null;
   service_months: number | null;
   is_profile_complete: 0 | 1;
+  total_count?: number;
 }
 
 export interface EmployeeDetailSummary extends RowDataPacket {
@@ -45,6 +46,15 @@ export interface EmployeeDetailSummary extends RowDataPacket {
 export interface EmployeeListResult {
   employees: EmployeeListItem[];
   total: number;
+}
+
+export interface EmployeeListFilters {
+  search?: string;
+  brandId?: number;
+  companyId?: number;
+  divisionId?: number;
+  locationId?: number;
+  status?: "active" | "inactive";
 }
 
 const PROFILE_INCOMPLETE_SQL =
@@ -82,12 +92,34 @@ export async function listEmployees(
   incompleteOnly = false,
   page = 1,
   pageSize = 25,
+  filters: EmployeeListFilters = {},
 ): Promise<EmployeeListResult> {
   const scope = directBrandScope(user, "e.brand_id");
   const clauses = [scope.clause];
   const params: SqlValue[] = [...scope.params];
   if (incompleteOnly) {
     clauses.push(`e.is_active = TRUE AND ${PROFILE_INCOMPLETE_SQL}`);
+  }
+  if (filters.brandId) {
+    clauses.push("e.brand_id = ?");
+    params.push(filters.brandId);
+  }
+  if (filters.companyId) {
+    clauses.push("e.company_id = ?");
+    params.push(filters.companyId);
+  }
+  if (filters.divisionId) {
+    clauses.push("p.division_id = ?");
+    params.push(filters.divisionId);
+  }
+  if (filters.locationId) {
+    clauses.push("e.location_id = ?");
+    params.push(filters.locationId);
+  }
+  if (filters.status === "active") {
+    clauses.push("e.is_active = TRUE");
+  } else if (filters.status === "inactive") {
+    clauses.push("e.is_active = FALSE");
   }
   if (search.trim()) {
     clauses.push("(e.full_name LIKE ? OR e.employee_code LIKE ? OR e.phone LIKE ?)");
@@ -103,7 +135,8 @@ export async function listEmployees(
             b.name AS brand_name, p.name AS position_name, d.name AS division_name,
             l.name AS location_name, DATE_FORMAT(e.join_date, '%Y-%m-%d') AS join_date, e.is_active, e.exit_date,
             TIMESTAMPDIFF(MONTH, e.join_date, COALESCE(e.exit_date, CURDATE())) AS service_months,
-            CASE WHEN ${PROFILE_INCOMPLETE_SQL} THEN 0 ELSE 1 END AS is_profile_complete
+            CASE WHEN ${PROFILE_INCOMPLETE_SQL} THEN 0 ELSE 1 END AS is_profile_complete,
+            COUNT(*) OVER() AS total_count
      FROM employees e
      LEFT JOIN companies c ON c.id = e.company_id
      INNER JOIN brands b ON b.id = e.brand_id
@@ -116,19 +149,7 @@ export async function listEmployees(
     [...params, pageSize, offset],
   );
 
-  const totalRows = await queryRows<RowDataPacket & { total: number }>(
-    `SELECT COUNT(*) AS total
-     FROM employees e
-     LEFT JOIN companies c ON c.id = e.company_id
-     INNER JOIN brands b ON b.id = e.brand_id
-     INNER JOIN positions p ON p.id = e.position_id
-     INNER JOIN divisions d ON d.id = p.division_id
-     INNER JOIN locations l ON l.id = e.location_id
-     ${where}`,
-    params,
-  );
-
-  return { employees, total: Number(totalRows[0]?.total ?? 0) };
+  return { employees, total: Number(employees[0]?.total_count ?? 0) };
 }
 
 export async function countIncompleteEmployees(user: SessionUser): Promise<number> {

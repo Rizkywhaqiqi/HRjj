@@ -1,4 +1,5 @@
 import type { RowDataPacket } from "mysql2/promise";
+import { unstable_cache } from "next/cache";
 import { queryRows } from "@/core/db";
 import type {
   BrandRow,
@@ -10,7 +11,6 @@ import type {
   PositionRow,
 } from "@/types/database";
 import type { SessionUser } from "@/types/database";
-import { brandScope } from "@/core/rbac/scope";
 
 export interface SelectOption {
   id: number;
@@ -37,6 +37,54 @@ interface PositionOptionRow extends RowDataPacket {
   division_id: number;
 }
 
+const cachedBrandOptions = unstable_cache(
+  async (): Promise<SelectOption[]> => {
+    const rows = await queryRows<BrandOptionRow>(
+      "SELECT id, name FROM brands WHERE is_active = 1 ORDER BY name",
+    );
+    return rows.map((row) => ({ id: row.id, name: row.name }));
+  },
+  ["master-data-brand-options"],
+  { revalidate: 60, tags: ["master-data"] },
+);
+
+const cachedCompanyOptions = unstable_cache(
+  async (): Promise<SelectOption[]> => {
+    const rows = await queryRows<CompanyOptionRow>(
+      "SELECT id, name, brand_id FROM companies WHERE is_active = 1 ORDER BY name",
+    );
+    return rows.map((row) => ({ id: row.id, name: row.name, parentId: row.brand_id }));
+  },
+  ["master-data-company-options"],
+  { revalidate: 60, tags: ["master-data"] },
+);
+
+const cachedDivisionOptions = unstable_cache(
+  async (): Promise<SelectOption[]> => {
+    const rows = await queryRows<DivisionOptionRow>(
+      "SELECT id, name FROM divisions WHERE is_active = 1 ORDER BY name",
+    );
+    return rows.map((row) => ({ id: row.id, name: row.name }));
+  },
+  ["master-data-division-options"],
+  { revalidate: 60, tags: ["master-data"] },
+);
+
+const cachedLocationOptions = unstable_cache(
+  async (): Promise<LocationRow[]> => {
+    return queryRows<LocationRow>(
+      `SELECT l.id, l.brand_id, l.name, l.city, l.address, l.is_active,
+              b.name AS brand_name
+       FROM locations l
+       LEFT JOIN brands b ON b.id = l.brand_id
+       WHERE l.is_active = 1
+       ORDER BY l.name`,
+    );
+  },
+  ["master-data-location-options"],
+  { revalidate: 60, tags: ["master-data"] },
+);
+
 export async function listBrands(): Promise<BrandRow[]> {
   return queryRows<BrandRow>(
     `SELECT id, code, name, description, is_active, created_at, updated_at
@@ -46,13 +94,8 @@ export async function listBrands(): Promise<BrandRow[]> {
 }
 
 export async function listBrandOptions(user?: SessionUser): Promise<SelectOption[]> {
-  const scope = user ? brandScope(user, "b.id") : { clause: "1=1", params: [] as (string | number | null)[] };
-  const rows = await queryRows<BrandOptionRow>(
-    `SELECT id, name FROM brands b WHERE is_active = 1 AND ${scope.clause} ORDER BY name`,
-    scope.params,
-  );
-
-  return rows.map((row) => ({ id: row.id, name: row.name }));
+  const options = await cachedBrandOptions();
+  return user && !user.scopeAll ? options.filter((item) => user.brandIds.includes(item.id)) : options;
 }
 
 export async function listCompanies(): Promise<CompanyRow[]> {
@@ -66,13 +109,8 @@ export async function listCompanies(): Promise<CompanyRow[]> {
 }
 
 export async function listCompanyOptions(user?: SessionUser): Promise<SelectOption[]> {
-  const scope = user ? brandScope(user, "c.brand_id") : { clause: "1=1", params: [] as (string | number | null)[] };
-  const rows = await queryRows<CompanyOptionRow>(
-    `SELECT id, name, brand_id FROM companies c WHERE is_active = 1 AND ${scope.clause} ORDER BY name`,
-    scope.params,
-  );
-
-  return rows.map((row) => ({ id: row.id, name: row.name, parentId: row.brand_id }));
+  const options = await cachedCompanyOptions();
+  return user && !user.scopeAll ? options.filter((item) => item.parentId !== null && item.parentId !== undefined && user.brandIds.includes(item.parentId)) : options;
 }
 
 export async function listDivisions(): Promise<DivisionRow[]> {
@@ -85,11 +123,7 @@ export async function listDivisions(): Promise<DivisionRow[]> {
 }
 
 export async function listDivisionOptions(): Promise<SelectOption[]> {
-  const rows = await queryRows<DivisionOptionRow>(
-    "SELECT id, name FROM divisions WHERE is_active = 1 ORDER BY name",
-  );
-
-  return rows.map((row) => ({ id: row.id, name: row.name }));
+  return cachedDivisionOptions();
 }
 
 export async function listPositions(): Promise<PositionRow[]> {
@@ -119,6 +153,11 @@ export async function listPositionOptions(divisionId?: number): Promise<SelectOp
 }
 
 export async function listLocations(user?: SessionUser, includeInactive = false): Promise<LocationRow[]> {
+  if (!includeInactive) {
+    const options = await cachedLocationOptions();
+    const allowed = user && !user.scopeAll ? new Set(user.brandIds) : null;
+    return options.filter((item) => !allowed || item.brand_id === null || allowed.has(item.brand_id));
+  }
   const scope = user ? (user.scopeAll ? { clause: "1=1", params: [] as (string | number | null)[] } : user.brandIds.length === 0 ? { clause: "1=0", params: [] as (string | number | null)[] } : { clause: `(l.brand_id IS NULL OR l.brand_id IN (${user.brandIds.map(() => "?").join(", ")}))`, params: user.brandIds as (string | number | null)[] }) : { clause: "1=1", params: [] as (string | number | null)[] };
   return queryRows<LocationRow>(
     `SELECT l.id, l.brand_id, l.name, l.city, l.address, l.is_active,
