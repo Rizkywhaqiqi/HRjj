@@ -34,6 +34,7 @@ import { firstParam } from "@/components/shared/format";
 import { Pagination, parsePage } from "@/components/shared/pagination";
 
 import {
+  Download,
   Search,
   Plus,
   Upload,
@@ -322,10 +323,11 @@ export default async function EmployeesPage({
             </h2>
             {canExport ? (
               <Link
-                href="/reports"
-                className="text-xs font-semibold text-brand-700 hover:underline"
+                href={`/api/reports/employees.pdf?${new URLSearchParams(queryValues)}`}
+                className={buttonSecondary}
               >
-                Buka laporan & ekspor →
+                <Download size={16} aria-hidden="true" />
+                Export PDF
               </Link>
             ) : null}
           </div>

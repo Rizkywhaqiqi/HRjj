@@ -54,9 +54,10 @@ export interface EmployeeListFilters {
   divisionId?: number;
   locationId?: number;
   status?: "active" | "inactive";
+  incompleteOnly?: boolean;
 }
 
-const PROFILE_INCOMPLETE_SQL =
+export const PROFILE_INCOMPLETE_SQL =
   "(e.company_id IS NULL OR e.nik_hash IS NULL OR e.birth_place IS NULL OR e.birth_date IS NULL OR e.address_current IS NULL OR e.address_ktp IS NULL OR e.phone IS NULL OR e.join_date IS NULL OR e.marital_status IS NULL OR e.children_count IS NULL)";
 
 export async function getEmployeeDetailSummary(
@@ -128,7 +129,9 @@ export async function listEmployees(
     // name columns instead of scanning every employee for `%term%` matches.
     const escapedTerm = normalizedSearch.replace(/[\\%_]/g, "\\$&");
     const term = `${escapedTerm}%`;
-    clauses.push("(e.employee_code LIKE ? OR e.full_name LIKE ? OR e.phone LIKE ?)");
+    clauses.push(
+      "(e.employee_code LIKE ? OR e.full_name LIKE ? OR e.phone LIKE ?)",
+    );
     params.push(term, term, term);
   }
 
@@ -168,7 +171,9 @@ export async function listEmployees(
   return { employees, total: Number(countRows[0]?.total ?? 0) };
 }
 
-export async function countIncompleteEmployees(user: SessionUser): Promise<number> {
+export async function countIncompleteEmployees(
+  user: SessionUser,
+): Promise<number> {
   const scope = directBrandScope(user, "e.brand_id");
   const rows = await queryRows<RowDataPacket & { total: number }>(
     `SELECT COUNT(*) AS total
@@ -180,19 +185,63 @@ export async function countIncompleteEmployees(user: SessionUser): Promise<numbe
   return Number(rows[0]?.total ?? 0);
 }
 
-export interface EmployeeEditItem extends RowDataPacket { id: number; employee_code: string; full_name: string; birth_place: string | null; birth_date: string | null; address_current: string | null; address_ktp: string | null; email: string | null; phone: string | null; join_date: string | null; npwp_encrypted: string | null; bank_name: string | null; bank_account_encrypted: string | null; marital_status: "SINGLE" | "MARRIED" | "DIVORCED" | null; children_count: number | null; company_id: number | null; brand_id: number; position_id: number; location_id: number; nik_encrypted: string | null; ktp_photo_path: string | null; }
-export async function getEmployeeForEdit(user: SessionUser, employeeId: number): Promise<(Omit<EmployeeEditItem, "nik_encrypted" | "npwp_encrypted" | "bank_account_encrypted"> & { nik: string | null; npwp: string | null; bankAccountNumber: string | null }) | null> {
-  if (!user.permissions.includes(PERMISSIONS.employeeViewPrivateFields)) return null;
+export interface EmployeeEditItem extends RowDataPacket {
+  id: number;
+  employee_code: string;
+  full_name: string;
+  birth_place: string | null;
+  birth_date: string | null;
+  address_current: string | null;
+  address_ktp: string | null;
+  email: string | null;
+  phone: string | null;
+  join_date: string | null;
+  npwp_encrypted: string | null;
+  bank_name: string | null;
+  bank_account_encrypted: string | null;
+  marital_status: "SINGLE" | "MARRIED" | "DIVORCED" | null;
+  children_count: number | null;
+  company_id: number | null;
+  brand_id: number;
+  position_id: number;
+  location_id: number;
+  nik_encrypted: string | null;
+  ktp_photo_path: string | null;
+}
+export async function getEmployeeForEdit(
+  user: SessionUser,
+  employeeId: number,
+): Promise<
+  | (Omit<
+      EmployeeEditItem,
+      "nik_encrypted" | "npwp_encrypted" | "bank_account_encrypted"
+    > & {
+      nik: string | null;
+      npwp: string | null;
+      bankAccountNumber: string | null;
+    })
+  | null
+> {
+  if (!user.permissions.includes(PERMISSIONS.employeeViewPrivateFields))
+    return null;
   const scope = directBrandScope(user, "e.brand_id");
-  const rows = await queryRows<EmployeeEditItem>(`SELECT e.id, e.employee_code, e.full_name, e.birth_place, DATE_FORMAT(e.birth_date, '%Y-%m-%d') AS birth_date, e.address_current, e.address_ktp, e.email, e.phone, DATE_FORMAT(e.join_date, '%Y-%m-%d') AS join_date, e.npwp_encrypted, e.bank_name, e.bank_account_encrypted, e.marital_status, e.children_count, e.company_id, e.brand_id, e.position_id, e.location_id, e.nik_encrypted, e.ktp_photo_path FROM employees e WHERE e.id=? AND ${scope.clause} LIMIT 1`, [employeeId, ...scope.params]);
+  const rows = await queryRows<EmployeeEditItem>(
+    `SELECT e.id, e.employee_code, e.full_name, e.birth_place, DATE_FORMAT(e.birth_date, '%Y-%m-%d') AS birth_date, e.address_current, e.address_ktp, e.email, e.phone, DATE_FORMAT(e.join_date, '%Y-%m-%d') AS join_date, e.npwp_encrypted, e.bank_name, e.bank_account_encrypted, e.marital_status, e.children_count, e.company_id, e.brand_id, e.position_id, e.location_id, e.nik_encrypted, e.ktp_photo_path FROM employees e WHERE e.id=? AND ${scope.clause} LIMIT 1`,
+    [employeeId, ...scope.params],
+  );
   const row = rows[0];
   if (!row) return null;
-  const { nik_encrypted, npwp_encrypted, bank_account_encrypted, ...rest } = row;
+  const { nik_encrypted, npwp_encrypted, bank_account_encrypted, ...rest } =
+    row;
   const canViewSensitive = user.permissions.includes("employee.view_sensitive");
   const masked = maskSensitiveFields(user, {
     nik: canViewSensitive && nik_encrypted ? decryptField(nik_encrypted) : null,
-    npwp: canViewSensitive && npwp_encrypted ? decryptField(npwp_encrypted) : null,
-    bankAccountNumber: canViewSensitive && bank_account_encrypted ? decryptField(bank_account_encrypted) : null,
+    npwp:
+      canViewSensitive && npwp_encrypted ? decryptField(npwp_encrypted) : null,
+    bankAccountNumber:
+      canViewSensitive && bank_account_encrypted
+        ? decryptField(bank_account_encrypted)
+        : null,
     ktpPhotoPath: rest.ktp_photo_path,
     addressCurrent: rest.address_current,
     birthPlace: rest.birth_place,
@@ -205,6 +254,18 @@ export async function getEmployeeForEdit(user: SessionUser, employeeId: number):
     childrenCount: rest.children_count,
     cvFilePath: null,
   });
-  if (canViewSensitive) await logAudit({ userId: user.id, action: "security.sensitive_read", entityType: "employee", entityId: employeeId, details: { fields: ["nik", "npwp", "bank_account"] } });
-  return { ...rest, nik: masked.nik, npwp: masked.npwp, bankAccountNumber: masked.bankAccountNumber };
+  if (canViewSensitive)
+    await logAudit({
+      userId: user.id,
+      action: "security.sensitive_read",
+      entityType: "employee",
+      entityId: employeeId,
+      details: { fields: ["nik", "npwp", "bank_account"] },
+    });
+  return {
+    ...rest,
+    nik: masked.nik,
+    npwp: masked.npwp,
+    bankAccountNumber: masked.bankAccountNumber,
+  };
 }

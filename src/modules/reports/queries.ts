@@ -2,6 +2,7 @@ import type { RowDataPacket } from "mysql2/promise";
 import { queryRows } from "@/core/db";
 import { directBrandScope } from "@/core/rbac/scope";
 import type { SessionUser } from "@/types/database";
+import { PROFILE_INCOMPLETE_SQL } from "@/modules/employees/queries";
 import type { EmployeeListFilters } from "@/modules/employees/queries";
 import { decryptField } from "@/core/crypto/field-encrypt";
 
@@ -48,17 +49,43 @@ export async function listEmployeeReport(
   const clauses = [scope.clause];
   const params = [...scope.params];
   if (filters.search?.trim()) {
-    clauses.push("(e.full_name LIKE ? OR e.employee_code LIKE ? OR e.phone LIKE ?)");
+    clauses.push(
+      "(e.full_name LIKE ? OR e.employee_code LIKE ? OR e.phone LIKE ?)",
+    );
     const term = `%${filters.search.trim()}%`;
     params.push(term, term, term);
   }
-  if (filters.brandId) { clauses.push("e.brand_id = ?"); params.push(filters.brandId); }
-  if (filters.companyId) { clauses.push("e.company_id = ?"); params.push(filters.companyId); }
-  if (filters.divisionId) { clauses.push("p.division_id = ?"); params.push(filters.divisionId); }
-  if (filters.locationId) { clauses.push("e.location_id = ?"); params.push(filters.locationId); }
-  if (filters.status === "active") { clauses.push("e.is_active = TRUE"); }
-  if (filters.status === "inactive") { clauses.push("e.is_active = FALSE"); }
-  const rows = await queryRows<EmployeeReportRow & { nik_encrypted: string | null; npwp_encrypted: string | null; bank_account_encrypted: string | null }>(
+  if (filters.brandId) {
+    clauses.push("e.brand_id = ?");
+    params.push(filters.brandId);
+  }
+  if (filters.companyId) {
+    clauses.push("e.company_id = ?");
+    params.push(filters.companyId);
+  }
+  if (filters.divisionId) {
+    clauses.push("p.division_id = ?");
+    params.push(filters.divisionId);
+  }
+  if (filters.locationId) {
+    clauses.push("e.location_id = ?");
+    params.push(filters.locationId);
+  }
+  if (filters.status === "active") {
+    clauses.push("e.is_active = TRUE");
+  }
+  if (filters.status === "inactive") {
+    clauses.push("e.is_active = FALSE");
+  }
+  if (filters.incompleteOnly)
+    clauses.push(`e.is_active = TRUE AND ${PROFILE_INCOMPLETE_SQL}`);
+  const rows = await queryRows<
+    EmployeeReportRow & {
+      nik_encrypted: string | null;
+      npwp_encrypted: string | null;
+      bank_account_encrypted: string | null;
+    }
+  >(
     `SELECT e.employee_code, e.full_name, b.name AS brand_name, c.name AS company_name,
             d.name AS division_name, p.name AS position_name, l.name AS location_name,
             e.join_date, e.is_active, e.exit_date,
@@ -74,10 +101,14 @@ export async function listEmployeeReport(
      ORDER BY b.name, e.full_name`,
     params,
   );
-  return rows.map(({ nik_encrypted, npwp_encrypted, bank_account_encrypted, ...row }) => ({
-    ...row,
-    nik: options.includeSensitive ? decryptOrNull(nik_encrypted) : null,
-    npwp: options.includeSensitive ? decryptOrNull(npwp_encrypted) : null,
-    bank_account_number: options.includeSensitive ? decryptOrNull(bank_account_encrypted) : null,
-  }));
+  return rows.map(
+    ({ nik_encrypted, npwp_encrypted, bank_account_encrypted, ...row }) => ({
+      ...row,
+      nik: options.includeSensitive ? decryptOrNull(nik_encrypted) : null,
+      npwp: options.includeSensitive ? decryptOrNull(npwp_encrypted) : null,
+      bank_account_number: options.includeSensitive
+        ? decryptOrNull(bank_account_encrypted)
+        : null,
+    }),
+  );
 }
