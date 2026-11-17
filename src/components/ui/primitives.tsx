@@ -50,7 +50,7 @@ export function CardHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 sm:px-5 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h2 className="text-base font-semibold text-slate-900">{title}</h2>
         {description ? (
@@ -69,7 +69,7 @@ export function CardBody({
   children: ReactNode;
   className?: string;
 }) {
-  return <div className={cn("px-5 py-5", className)}>{children}</div>;
+  return <div className={cn("px-4 py-4 sm:px-5 sm:py-5", className)}>{children}</div>;
 }
 
 const BADGE_TONES = {

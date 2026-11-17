@@ -11,9 +11,9 @@ import { NavSectionGroups } from "./nav-section-groups";
 
 function BrandMark() {
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex min-w-0 items-center gap-3">
       <BrandLogo className="w-16" sizes="64px" />
-      <div>
+      <div className="min-w-0">
         <p className="text-xs font-bold tracking-[0.16em] text-brand-700">
           JOJO GROUP
         </p>
@@ -29,7 +29,7 @@ function SidebarNav({ sections }: { sections: NavSection[] }) {
   return (
     <nav
       aria-label="Navigasi utama"
-      className="flex-1 space-y-3 overflow-y-auto px-3 pb-4"
+      className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-3 pb-4"
     >
       <Suspense
         fallback={
@@ -73,8 +73,8 @@ export function AppShell({
   children: ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-surface lg:grid lg:grid-cols-[17rem_minmax(0,1fr)]">
-      <aside className="hidden border-r border-slate-200 bg-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
+    <div className="min-h-dvh bg-surface lg:grid lg:grid-cols-[17rem_minmax(0,1fr)]">
+      <aside className="hidden border-r border-slate-200 bg-white lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col">
         <div className="px-5 py-5">
           <BrandMark />
         </div>
@@ -110,8 +110,8 @@ export function AppShell({
         </div>
       </aside>
 
-      <div className="flex min-h-screen min-w-0 flex-col">
-        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+      <div className="flex min-h-dvh min-w-0 flex-col">
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 backdrop-blur lg:hidden">
           <BrandMark />
           <MobileNav
             sections={sections}
@@ -120,7 +120,7 @@ export function AppShell({
         </header>
         <main
           className={cn(
-            "mx-auto w-full min-w-0 max-w-7xl flex-1 px-4 py-6",
+            "mx-auto w-full min-w-0 max-w-7xl flex-1 px-4 py-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]",
             "sm:px-6 lg:px-8",
           )}
         >

@@ -63,7 +63,7 @@ function NavSectionGroup({
   mobile: boolean;
 }) {
   const [openOverride, setOpenOverride] = useState<boolean | null>(null);
-  const open = openOverride ?? isActiveSection;
+  const open = openOverride ?? (mobile || isActiveSection);
 
   return (
     <section>
@@ -74,11 +74,11 @@ function NavSectionGroup({
           aria-controls={`${sectionId}-items`}
           onClick={() => setOpenOverride(!open)}
           className={`flex w-full items-center gap-2 rounded-lg px-3 ${
-            mobile ? "py-2.5" : "py-2"
-          } text-left text-[0.65rem] font-semibold uppercase tracking-wider transition ${
+            mobile ? "min-h-11 py-3" : "min-h-10 py-2"
+          } text-left text-xs font-semibold tracking-wide transition focus-visible:outline-2 focus-visible:outline-brand-600 ${
             isActiveSection
               ? "text-brand-700"
-              : "text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+              : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
           }`}
         >
           <span>{section.label}</span>
@@ -107,15 +107,15 @@ function NavSectionGroup({
                 onClick={onNavigate}
                 aria-current={isActive ? "page" : undefined}
                 className={`flex items-center gap-3 rounded-xl px-3 ${
-                  mobile ? "py-2.5" : "py-2"
-                } text-sm font-medium transition ${
+                  mobile ? "min-h-11 py-3" : "min-h-10 py-2"
+                } text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-600 ${
                   isActive
-                    ? "bg-brand-50 text-brand-700"
+                    ? "bg-brand-600 text-white shadow-sm"
                     : "text-slate-600 hover:bg-brand-50 hover:text-brand-700"
                 }`}
               >
                 <NavIcon name={item.icon} />
-                {item.label}
+                <span className="min-w-0 break-words">{item.label}</span>
               </Link>
             </li>
           );

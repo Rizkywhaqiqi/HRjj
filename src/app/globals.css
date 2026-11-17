@@ -94,3 +94,19 @@ body {
   }
 }
 
+
+/* The dialog is in the browser top layer, outside header stacking contexts. */
+.mobile-navigation::backdrop {
+  background: rgb(15 23 42 / 55%);
+  backdrop-filter: blur(3px);
+}
+.mobile-navigation[open] {
+  animation: navigation-enter 180ms ease-out;
+}
+@keyframes navigation-enter {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mobile-navigation[open] { animation: none; }
+}
