@@ -18,8 +18,6 @@ export const PERMISSIONS = {
   contractExport: "contract.export",
   letterView: "letter.view",
   letterCreate: "letter.create",
-  letterApprove: "letter.approve",
-  letterIssue: "letter.issue",
   reportView: "report.view",
   reportExport: "report.export",
   masterDataView: "master_data.view",
@@ -30,19 +28,6 @@ export const PERMISSIONS = {
   roleManage: "role.manage",
   featureFlagManage: "feature_flag.manage",
   auditView: "audit.view",
-  recruitmentView: "recruitment.view",
-  recruitmentManage: "recruitment.manage",
-  recruitmentHire: "recruitment.hire",
-  recruitmentExport: "recruitment.export",
-  vacancyManage: "vacancy.manage",
-  checklistView: "checklist.view",
-  checklistUpdate: "checklist.update",
-  leaveView: "leave.view",
-  leaveManage: "leave.manage",
-  payrollView: "payroll.view",
-  payrollManage: "payroll.manage",
-  assetView: "asset.view",
-  assetManage: "asset.manage",
 } as const;
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

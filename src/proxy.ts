@@ -14,19 +14,16 @@ const PROTECTED_PREFIXES = [
   "/settings",
   "/employees",
   "/contracts",
-  "/warnings",
-  "/leave",
-  "/payroll",
-  "/assets",
   "/letters",
   "/reports",
-  "/recruitment",
   "/ganti-password",
 ];
 
 const AUTH_PAGES = ["/login"];
 
-async function hasValidSessionToken(token: string | undefined): Promise<boolean> {
+async function hasValidSessionToken(
+  token: string | undefined,
+): Promise<boolean> {
   const secret = process.env.AUTH_SECRET;
 
   if (!token || !secret || secret.length < 32) {

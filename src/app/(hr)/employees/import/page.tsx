@@ -1,7 +1,74 @@
 import Link from "next/link";
-import { requirePermission } from "@/core/rbac/guard";
+import { requireFeatureEnabled, requirePermission } from "@/core/rbac/guard";
 import { PERMISSIONS } from "@/core/rbac/permissions";
-import { Card, CardBody, PageHeader } from "@/components/ui/primitives";
+import {
+  Card,
+  CardBody,
+  CardHeader,
+  PageHeader,
+  buttonSecondary,
+} from "@/components/ui/primitives";
 import ImportForm from "./import-form";
 export const instant = false;
-export default async function EmployeeImportPage() { await requirePermission(PERMISSIONS.employeeCreate); return <div><PageHeader title="Import karyawan" description="Baris valid langsung menjadi karyawan aktif. CV boleh dikosongkan jika brand sudah ditentukan; profil yang belum lengkap dapat diperbarui nanti. XLSX maksimal 500 baris." /><Card><CardBody><p className="mb-4 text-sm text-slate-600">Header wajib: fullName, positionId, locationId, dan salah satu dari brandId atau companyId. companyId boleh kosong; jika diisi, brand mengikuti CV. Kolom pribadi seperti NIK, birthPlace, birthDate, addressCurrent, addressKtp, phone, joinDate, maritalStatus, dan childrenCount boleh kosong. employeeCode opsional; jika kosong, ID dibuat otomatis. Kolom tanggal menerima tanggal Excel, YYYY-MM-DD, atau DD/MM/YYYY. NIK tidak pernah ditampilkan dalam preview. Kandidat yang diterima dilengkapi lewat menu staging kandidat, bukan lewat import karyawan.</p><ImportForm /><Link href="/employees" className="mt-5 inline-flex text-sm font-semibold text-brand-700">← Kembali ke karyawan</Link></CardBody></Card></div>; }
+export default async function ImportPage() {
+  await requirePermission(PERMISSIONS.employeeCreate);
+  await requireFeatureEnabled("employees");
+  return (
+    <div className="space-y-5">
+      <PageHeader
+        title="Import karyawan"
+        description="Masukkan banyak karyawan dari Excel atau ekspor aplikasi recruitment terpisah."
+        action={
+          <Link href="/employees" className={buttonSecondary}>
+            Kembali ke karyawan
+          </Link>
+        }
+      />
+      <div className="grid gap-4 md:grid-cols-3">
+        {[
+          [
+            "1. Siapkan file",
+            "Unduh format Excel. Isi data atau gunakan ekspor recruitment dengan header yang sama.",
+          ],
+          [
+            "2. Periksa data",
+            "Nama organisasi dicocokkan dengan master data. Kesalahan ditampilkan per baris.",
+          ],
+          [
+            "3. Simpan karyawan",
+            "Data valid menjadi karyawan aktif. Data lama tidak ditimpa.",
+          ],
+        ].map(([title, text]) => (
+          <Card key={title}>
+            <CardHeader title={title} />
+            <CardBody>
+              <p className="text-sm text-slate-600">{text}</p>
+            </CardBody>
+          </Card>
+        ))}
+      </div>
+      <Card>
+        <CardHeader
+          title="Unggah file Excel"
+          description="Maksimal 500 baris dan 1,5 MB. KTP diunggah terpisah dari profil karyawan."
+          action={
+            <a
+              href="/api/employees/import/template"
+              className={buttonSecondary}
+            >
+              Unduh format & referensi
+            </a>
+          }
+        />
+        <CardBody>
+          <ImportForm />
+        </CardBody>
+      </Card>
+      <p className="text-sm text-slate-500">
+        Untuk integrasi recruitment berikutnya, gunakan format hrjj-employees-v1
+        dan employeeCode yang stabil. Tidak perlu menghubungkan database kedua
+        aplikasi.
+      </p>
+    </div>
+  );
+}

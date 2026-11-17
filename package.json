@@ -16,13 +16,12 @@
     "env:init": "node scripts/generate-dev-env.mjs",
     "test:storage": "node --import tsx --test tests/storage.test.ts",
     "storage:check": "node --import tsx scripts/check-r2-storage.ts",
-    "storage:migrate": "node --import tsx scripts/migrate-files-to-r2.ts"
+    "storage:migrate": "node --import tsx scripts/migrate-files-to-r2.ts",
+    "test": "node --import tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1170.0",
     "bcryptjs": "^3.0.2",
-    "docx-preview": "^0.4.1",
-    "docxtemplater": "^3.71.1",
     "dotenv": "^16.6.1",
     "exceljs": "^4.4.0",
     "jose": "^6.1.0",
@@ -30,7 +29,6 @@
     "mysql2": "^3.15.3",
     "next": "16.4.6",
     "pdfkit": "^0.20.2",
-    "pizzip": "^3.3.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "zod": "^4.1.12"

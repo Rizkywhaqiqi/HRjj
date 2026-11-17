@@ -51,7 +51,7 @@ export async function listRolesWithCounts(): Promise<RoleSummary[]> {
 export async function listPermissionCatalog(): Promise<PermissionRow[]> {
   return queryRows<PermissionRow>(
     `SELECT id, code, module, description
-     FROM permissions
+     FROM permissions WHERE module NOT IN ('recruitment','vacancy','checklist','checklists','leave','payroll','asset','assets') AND code NOT IN ('letter.approve','letter.issue')
      ORDER BY module, code`,
   );
 }
@@ -95,7 +95,9 @@ export async function countUsersInRole(roleId: number): Promise<number> {
   return rows[0]?.total ?? 0;
 }
 
-export async function countExistingPermissions(permissionIds: number[]): Promise<number> {
+export async function countExistingPermissions(
+  permissionIds: number[],
+): Promise<number> {
   if (permissionIds.length === 0) {
     return 0;
   }

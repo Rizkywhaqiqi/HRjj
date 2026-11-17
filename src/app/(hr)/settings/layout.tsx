@@ -6,7 +6,11 @@ import { SubNav } from "@/components/layout/sub-nav";
 
 export const instant = false;
 
-export default async function SettingsLayout({ children }: { children: ReactNode }) {
+export default async function SettingsLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const user = await requireStaffSession();
 
   const items = [
@@ -17,10 +21,10 @@ export default async function SettingsLayout({ children }: { children: ReactNode
       ? { href: "/settings/roles", label: "Peran & Izin" }
       : null,
     hasPermission(user, PERMISSIONS.featureFlagManage)
-      ? { href: "/settings/feature-flags", label: "Saklar Fitur" }
+      ? { href: "/settings/feature-flags", label: "Modul aplikasi" }
       : null,
     hasPermission(user, PERMISSIONS.auditView)
-      ? { href: "/settings/audit-logs", label: "Audit Log" }
+      ? { href: "/settings/audit-logs", label: "Riwayat aktivitas" }
       : null,
   ].filter((item): item is { href: string; label: string } => item !== null);
 

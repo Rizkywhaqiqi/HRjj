@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "JOJO GROUP | Bertumbuh Bersama",
+  title: "JOJO HR Space | Dokumentasi karyawan",
   description:
-    "Kenali ekosistem brand JOJO GROUP, perjalanan kami, dan peluang untuk bertumbuh bersama.",
+    "Aplikasi internal untuk data karyawan, kontrak, surat, dan laporan HR.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
