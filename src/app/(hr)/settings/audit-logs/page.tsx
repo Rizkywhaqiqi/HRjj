@@ -21,7 +21,7 @@ export default async function AuditLogsPage({ searchParams }: { searchParams: Pr
 
   return (
     <div>
-      <PageHeader title="Audit log" description="Riwayat tindakan penting pengguna dan perubahan data." />
+      <PageHeader title="Riwayat aktivitas" description="Login, pengelolaan akun dan hak akses, pembuatan surat, perubahan data, impor, ekspor, dan akses data sensitif. Filter, pencarian, dan navigasi tidak dicatat." />
       <Card>
         <CardBody>
           <form method="get" className="mb-5 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
