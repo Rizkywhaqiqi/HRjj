@@ -125,9 +125,6 @@ export async function createLetterAction(formData: FormData): Promise<void> {
   const employee = employees[0];
   if (!employee) fail("Karyawan aktif tidak ditemukan.", formPath);
   assertBrandAccess(actor, employee.brand_id);
-  if (employee.company_id === null || employee.company_name === null) {
-    fail("Pilih CV pada profil karyawan sebelum membuat surat atau kontrak.", formPath);
-  }
   const contract = data.contractId
     ? (await queryRows<ContractLetterRow>(
       `SELECT ct.id, ct.employee_id, ty.name AS contract_type_name,
@@ -217,24 +214,29 @@ export async function createLetterAction(formData: FormData): Promise<void> {
     doc.render({
       ...storedMetadata,
       employee_code: employee.employee_code,
-      position_name: employee.position_name,
-      location_name: employee.location_name,
-      location_city: employee.location_city ?? employee.location_name,
-      company_address: employee.company_address ?? "",
-      company_phone: employee.company_phone ?? "",
-      full_name: employee.full_name,
-      company_name: employee.company_name,
+      company_address: employee.company_address?.trim() || "-",
+      company_phone: employee.company_phone?.trim() || "-",
+      full_name: employee.full_name?.trim() || "-",
+      company_name: employee.company_name?.trim() || "-",
+      position_name: employee.position_name?.trim() || "-",
+      location_name: employee.location_name?.trim() || "-",
+      location_city: employee.location_city?.trim() || employee.location_name?.trim() || "-",
       issued_date: formatLetterDate(data.issuedDate),
     });
     const output = doc.getZip().generate({ type: "nodebuffer" });
     await mkdir(outputDir, { recursive: true });
     const result = await withTransaction(async (connection) => {
-      await connection.execute("INSERT INTO letter_sequences (company_id, letter_year, next_number) VALUES (?, YEAR(?), 1) ON DUPLICATE KEY UPDATE next_number = next_number", [employee.company_id, data.issuedDate]);
-      const [sequenceRows] = await connection.execute<RowDataPacket[]>("SELECT next_number FROM letter_sequences WHERE company_id = ? AND letter_year = YEAR(?) FOR UPDATE", [employee.company_id, data.issuedDate]);
-      const number = Number(sequenceRows[0]?.next_number ?? 1);
-      await connection.execute("UPDATE letter_sequences SET next_number = next_number + 1 WHERE company_id = ? AND letter_year = YEAR(?)", [employee.company_id, data.issuedDate]);
-      const letterNumber = `${employee.brand_code}/${data.type}/${new Date(data.issuedDate).getFullYear()}/${String(number).padStart(4, "0")}`;
-      const relativePath = `letters/${employee.company_id}-${letterNumber.replaceAll("/", "-")}.docx`;
+      let letterNumber: string;
+      if (employee.company_id !== null) {
+        await connection.execute("INSERT INTO letter_sequences (company_id, letter_year, next_number) VALUES (?, YEAR(?), 1) ON DUPLICATE KEY UPDATE next_number = next_number", [employee.company_id, data.issuedDate]);
+        const [sequenceRows] = await connection.execute<RowDataPacket[]>("SELECT next_number FROM letter_sequences WHERE company_id = ? AND letter_year = YEAR(?) FOR UPDATE", [employee.company_id, data.issuedDate]);
+        const number = Number(sequenceRows[0]?.next_number ?? 1);
+        await connection.execute("UPDATE letter_sequences SET next_number = next_number + 1 WHERE company_id = ? AND letter_year = YEAR(?)", [employee.company_id, data.issuedDate]);
+        letterNumber = `${employee.brand_code}/${data.type}/${new Date(data.issuedDate).getFullYear()}/${String(number).padStart(4, "0")}`;
+      } else {
+        letterNumber = `${employee.brand_code}/${data.type}/${new Date(data.issuedDate).getFullYear()}/NO-CV-${randomUUID().slice(0, 8).toUpperCase()}`;
+      }
+      const relativePath = `letters/${employee.company_id ?? "no-company"}-${letterNumber.replaceAll("/", "-")}.docx`;
       const [insert] = await connection.execute<ResultSetHeader>(`INSERT INTO letters (letter_number, type, employee_id, company_id, template_id, file_path, status, issued_date, metadata, created_by) VALUES (?, ?, ?, ?, ?, ?, 'ISSUED', ?, ?, ?)`, [letterNumber, data.type, employee.employee_id, employee.company_id, template?.id ?? null, relativePath, data.issuedDate, JSON.stringify(storedMetadata), actor.id]);
       if (linkContract && contract) {
         const [linked] = await connection.execute<ResultSetHeader>(
@@ -294,7 +296,7 @@ export async function submitLetterForApprovalAction(formData: FormData): Promise
   const actor = await requirePermission(PERMISSIONS.letterCreate);
   const id = Number(formData.get("letterId"));
   if (!Number.isInteger(id) || id <= 0) fail("ID surat tidak valid.");
-  const result = await executeSql("UPDATE letters l INNER JOIN companies c ON c.id=l.company_id SET l.status='PENDING_APPROVAL' WHERE l.id=? AND l.status='DRAFT' AND (? OR c.brand_id IN (SELECT brand_id FROM user_brand_access WHERE user_id=?))", [id, actor.scopeAll, actor.id]);
+  const result = await executeSql("UPDATE letters l INNER JOIN employees e ON e.id=l.employee_id SET l.status='PENDING_APPROVAL' WHERE l.id=? AND l.status='DRAFT' AND (? OR e.brand_id IN (SELECT brand_id FROM user_brand_access WHERE user_id=?))", [id, actor.scopeAll, actor.id]);
   if (result.affectedRows !== 1) fail("Surat tidak ditemukan atau tidak dapat diajukan.");
   await logAudit({ userId: actor.id, action: "letter.submit_approval", entityType: "letter", entityId: id });
   redirectWithMessage(PATH, "ok", "Surat diajukan untuk persetujuan.");
@@ -304,7 +306,7 @@ export async function approveLetterAction(formData: FormData): Promise<void> {
   const actor = await requirePermission(PERMISSIONS.letterApprove);
   const id = Number(formData.get("letterId"));
   if (!Number.isInteger(id) || id <= 0) fail("ID surat tidak valid.");
-  const result = await executeSql("UPDATE letters l INNER JOIN companies c ON c.id=l.company_id SET l.status='APPROVED', l.approved_by=? WHERE l.id=? AND l.status='PENDING_APPROVAL' AND (? OR c.brand_id IN (SELECT brand_id FROM user_brand_access WHERE user_id=?))", [actor.id, id, actor.scopeAll, actor.id]);
+  const result = await executeSql("UPDATE letters l INNER JOIN employees e ON e.id=l.employee_id SET l.status='APPROVED', l.approved_by=? WHERE l.id=? AND l.status='PENDING_APPROVAL' AND (? OR e.brand_id IN (SELECT brand_id FROM user_brand_access WHERE user_id=?))", [actor.id, id, actor.scopeAll, actor.id]);
   if (result.affectedRows !== 1) fail("Surat tidak ditemukan atau belum menunggu persetujuan.");
   await logAudit({ userId: actor.id, action: "letter.approve", entityType: "letter", entityId: id });
   redirectWithMessage(PATH, "ok", "Surat disetujui.");
@@ -314,7 +316,7 @@ export async function issueLetterAction(formData: FormData): Promise<void> {
   const actor = await requirePermission(PERMISSIONS.letterIssue);
   const id = Number(formData.get("letterId"));
   if (!Number.isInteger(id) || id <= 0) fail("ID surat tidak valid.");
-  const result = await executeSql("UPDATE letters l INNER JOIN companies c ON c.id=l.company_id SET l.status='ISSUED' WHERE l.id=? AND l.status='APPROVED' AND (? OR c.brand_id IN (SELECT brand_id FROM user_brand_access WHERE user_id=?))", [id, actor.scopeAll, actor.id]);
+  const result = await executeSql("UPDATE letters l INNER JOIN employees e ON e.id=l.employee_id SET l.status='ISSUED' WHERE l.id=? AND l.status='APPROVED' AND (? OR e.brand_id IN (SELECT brand_id FROM user_brand_access WHERE user_id=?))", [id, actor.scopeAll, actor.id]);
   if (result.affectedRows !== 1) fail("Surat belum disetujui atau di luar scope.");
   await logAudit({ userId: actor.id, action: "letter.issue", entityType: "letter", entityId: id });
   redirectWithMessage(PATH, "ok", "Surat diterbitkan.");
@@ -331,8 +333,8 @@ export async function deleteLetterAction(formData: FormData): Promise<void> {
       const [rows] = await connection.execute<LetterDeleteRow[]>(
         `SELECT l.file_path, l.letter_number, l.status
          FROM letters l
-         INNER JOIN companies c ON c.id = l.company_id
-         WHERE l.id = ? AND (? OR c.brand_id IN (SELECT brand_id FROM user_brand_access WHERE user_id = ?))
+         INNER JOIN employees e ON e.id = l.employee_id
+         WHERE l.id = ? AND (? OR e.brand_id IN (SELECT brand_id FROM user_brand_access WHERE user_id = ?))
          FOR UPDATE`,
         [id, actor.scopeAll, actor.id],
       );

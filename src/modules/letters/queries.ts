@@ -2,18 +2,18 @@ import type { RowDataPacket } from "mysql2/promise";
 import { queryRows } from "@/core/db";
 import { brandScope, directBrandScope } from "@/core/rbac/scope";
 import type { SessionUser } from "@/types/database";
-export interface LetterListItem extends RowDataPacket { id: number; letter_number: string; type: string; full_name: string; company_name: string; issued_date: string | Date; status: string; file_path: string; }
+export interface LetterListItem extends RowDataPacket { id: number; letter_number: string; type: string; full_name: string; company_name: string | null; issued_date: string | Date; status: string; file_path: string; }
 export function listLetters(
   user: SessionUser,
   employeeId?: number | null,
 ): Promise<LetterListItem[]> {
-  const scope = brandScope(user, "l.company_id");
+  const scope = directBrandScope(user, "e.brand_id");
   return queryRows<LetterListItem>(
     `SELECT l.id, l.letter_number, l.type, e.full_name, c.name AS company_name,
             l.issued_date, l.status, l.file_path
      FROM letters l
      INNER JOIN employees e ON e.id = l.employee_id
-     INNER JOIN companies c ON c.id = l.company_id
+     LEFT JOIN companies c ON c.id = l.company_id
      WHERE ${scope.clause}${employeeId ? " AND l.employee_id = ?" : ""}
      ORDER BY l.id DESC`,
     employeeId ? [...scope.params, employeeId] : scope.params,
@@ -73,7 +73,7 @@ export async function getLetterContractContext(
 }
 export interface LetterPreviewInfo extends RowDataPacket { id: number; letter_number: string; type: string; full_name: string; status: string; }
 export async function getLetterPreviewInfo(user: SessionUser, letterId: number): Promise<LetterPreviewInfo | null> {
-  const scope = brandScope(user, "l.company_id");
+  const scope = directBrandScope(user, "e.brand_id");
   const rows = await queryRows<LetterPreviewInfo>(
     `SELECT l.id, l.letter_number, l.type, e.full_name, l.status
      FROM letters l

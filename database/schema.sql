@@ -376,7 +376,7 @@ CREATE TABLE IF NOT EXISTS letters (
   letter_number VARCHAR(100) NOT NULL UNIQUE,
   type ENUM('SP', 'SKK', 'CONTRACT', 'NDA', 'STILL_WORKING') NOT NULL,
   employee_id INT NOT NULL,
-  company_id INT NOT NULL,
+  company_id INT NULL,
   template_id INT NULL,
   file_path VARCHAR(255) NOT NULL,
   status ENUM('DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'ISSUED') NOT NULL DEFAULT 'ISSUED',

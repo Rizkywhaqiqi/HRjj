@@ -208,11 +208,6 @@ export default async function LettersPage({ searchParams }: { searchParams: Prom
                 <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
                   Karyawan aktif tidak ditemukan atau berada di luar akses Anda. Pilih karyawan dari daftar.
                 </p>
-              ) : selectedEmployee && selectedEmployee.company_name === null ? (
-                <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                  CV karyawan belum ditentukan. Pilih CV melalui edit profil sebelum membuat surat.
-                  <Link href={`/employees/${selectedEmployee.id}?mode=edit`} className="ml-1 font-semibold underline">Lengkapi profil</Link>
-                </p>
               ) : selectedEmployee ? (
                 <form action={createLetterAction} className="grid gap-3 sm:grid-cols-3">
                   <input name="employeeId" type="hidden" value={selectedEmployee.id} />
@@ -220,7 +215,7 @@ export default async function LettersPage({ searchParams }: { searchParams: Prom
                     <span className="min-w-0 text-slate-700">
                       <b>{selectedEmployee.full_name}</b> · {selectedEmployee.employee_code}
                       <span className="block text-xs text-slate-500">
-                        {selectedEmployee.position_name} · {selectedEmployee.company_name}
+                        {selectedEmployee.position_name} · {selectedEmployee.company_name ?? "-"}
                       </span>
                     </span>
                     <Link href="/employees" className="font-semibold text-brand-700 hover:underline">Pilih karyawan lain</Link>
@@ -386,7 +381,7 @@ export default async function LettersPage({ searchParams }: { searchParams: Prom
                     <td className="px-3 py-3 font-medium">{letter.letter_number}</td>
                     <td className="px-3 py-3">{letterTypeLabel(letter.type)}</td>
                     <td className="px-3 py-3">{letter.full_name}</td>
-                    <td className="px-3 py-3">{letter.company_name}</td>
+                    <td className="px-3 py-3">{letter.company_name ?? "-"}</td>
                     <td className="px-3 py-3 whitespace-nowrap">{formatDate(letter.issued_date)}</td>
                     <td className="px-3 py-3">
                       <Badge tone={statusTone(letter.status)}>{statusLabel(letter.status)}</Badge>

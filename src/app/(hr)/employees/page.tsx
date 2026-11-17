@@ -31,7 +31,7 @@ function isLetterType(value: string): value is LetterType {
 }
 
 function availableLetterTypes(
-  companyId: number,
+  companyId: number | null,
   templates: Awaited<ReturnType<typeof listLetterTemplates>>,
 ): LetterType[] {
   const available = new Set<LetterType>(["CONTRACT"]);
@@ -243,7 +243,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
                       >
                         Detail
                       </Link>
-                      {canCreateLetter && employee.is_active && employee.company_id !== null ? (
+                      {canCreateLetter && employee.is_active ? (
                         <EmployeeLetterLauncher
                           employee={{
                             id: employee.id,
