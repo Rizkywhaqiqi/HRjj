@@ -125,9 +125,12 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
         <CardBody>
           <form method="get" className="mb-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <input
+              type="search"
               name="search"
               defaultValue={search}
-              placeholder="Cari nama, kode, atau telepon"
+              minLength={2}
+              maxLength={80}
+              placeholder="Cari nama, kode, atau telepon (min. 2 karakter)"
               aria-label="Cari karyawan berdasarkan nama, kode, atau telepon"
               className={inputClass}
             />

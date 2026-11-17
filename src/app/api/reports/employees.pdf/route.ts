@@ -1,4 +1,6 @@
 import PDFDocument from "pdfkit";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { hasPermission, requirePermission } from "@/core/rbac/guard";
 import { PERMISSIONS } from "@/core/rbac/permissions";
 import { listEmployeeReport } from "@/modules/reports";
@@ -54,6 +56,7 @@ async function renderPdf(
   const left = 36;
   const contentWidth = doc.page.width - left * 2;
   const pageBottom = doc.page.height - 42;
+  const logoPath = join(process.cwd(), "public", "images", "jojo-logo.jpg");
   const generatedAt = new Date();
   const generatedLabel = new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jakarta" }).format(generatedAt);
   const activeCount = rows.filter((row) => row.is_active).length;
@@ -78,9 +81,11 @@ async function renderPdf(
   };
   const drawMainHeader = () => {
     pageNumber += 1;
+    if (existsSync(logoPath)) doc.image(logoPath, left, 28, { fit: [54, 54], align: "center", valign: "center" });
     doc.fillColor("#c4ff55").rect(left, 28, 86, 4).fill();
-    doc.font("Helvetica-Bold").fontSize(18).fillColor("#0f172a").text("JOJO GROUP MANAGEMENT", left, 38);
-    doc.font("Helvetica").fontSize(10).fillColor("#475569").text("Laporan Data Karyawan (Detail)", left, 62);
+    const titleLeft = left + 68;
+    doc.font("Helvetica-Bold").fontSize(18).fillColor("#0f172a").text("JOJO GROUP MANAGEMENT", titleLeft, 38);
+    doc.font("Helvetica").fontSize(10).fillColor("#475569").text("Laporan Data Karyawan (Detail)", titleLeft, 62);
     doc.fontSize(8).text(`Dibuat: ${generatedLabel} | Total: ${rows.length} karyawan | Aktif: ${activeCount} | Nonaktif: ${inactiveCount}`, left, 80, { width: contentWidth, height: 10, lineBreak: false, ellipsis: true });
     doc.strokeColor("#cbd5e1").lineWidth(0.8).moveTo(left, 96).lineTo(left + contentWidth, 96).stroke();
     doc.font("Helvetica-Bold").fontSize(10).fillColor("#0f172a").text("Filter laporan", left, 108);
@@ -88,8 +93,10 @@ async function renderPdf(
   };
   const drawContinuationHeader = () => {
     pageNumber += 1;
-    doc.font("Helvetica-Bold").fontSize(12).fillColor("#0f172a").text("Detail Karyawan (lanjutan)", left, 32);
-    doc.font("Helvetica").fontSize(8).fillColor("#64748b").text(filterParts, left, 50, { width: contentWidth, height: 12, ellipsis: true });
+    if (existsSync(logoPath)) doc.image(logoPath, left, 22, { fit: [38, 38], align: "center", valign: "center" });
+    const titleLeft = left + 50;
+    doc.font("Helvetica-Bold").fontSize(12).fillColor("#0f172a").text("Detail Karyawan (lanjutan)", titleLeft, 32);
+    doc.font("Helvetica").fontSize(8).fillColor("#64748b").text(filterParts, titleLeft, 50, { width: contentWidth - 50, height: 12, ellipsis: true });
     doc.strokeColor("#cbd5e1").lineWidth(0.8).moveTo(left, 66).lineTo(left + contentWidth, 66).stroke();
   };
   const drawBrandSummary = (y: number) => {

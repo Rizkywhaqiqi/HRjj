@@ -22,7 +22,6 @@ export interface EmployeeListItem extends RowDataPacket {
   exit_date: string | Date | null;
   service_months: number | null;
   is_profile_complete: 0 | 1;
-  total_count?: number;
 }
 
 export interface EmployeeDetailSummary extends RowDataPacket {
@@ -121,22 +120,27 @@ export async function listEmployees(
   } else if (filters.status === "inactive") {
     clauses.push("e.is_active = FALSE");
   }
-  if (search.trim()) {
-    clauses.push("(e.full_name LIKE ? OR e.employee_code LIKE ? OR e.phone LIKE ?)");
-    const term = `%${search.trim()}%`;
+  const normalizedSearch = search.trim().replace(/\s+/g, " ").slice(0, 80);
+  if (normalizedSearch.length === 1) {
+    clauses.push("1 = 0");
+  } else if (normalizedSearch.length >= 2) {
+    // Prefix matching lets MySQL use the indexed employee code, phone, and
+    // name columns instead of scanning every employee for `%term%` matches.
+    const escapedTerm = normalizedSearch.replace(/[\\%_]/g, "\\$&");
+    const term = `${escapedTerm}%`;
+    clauses.push("(e.employee_code LIKE ? OR e.full_name LIKE ? OR e.phone LIKE ?)");
     params.push(term, term, term);
   }
 
   const where = `WHERE ${clauses.join(" AND ")}`;
   const offset = (page - 1) * pageSize;
 
-  const employees = await queryRows<EmployeeListItem>(
+  const listQuery = queryRows<EmployeeListItem>(
     `SELECT e.id, e.employee_code, e.full_name, e.company_id, c.name AS company_name,
             b.name AS brand_name, p.name AS position_name, d.name AS division_name,
             l.name AS location_name, DATE_FORMAT(e.join_date, '%Y-%m-%d') AS join_date, e.is_active, e.exit_date,
             TIMESTAMPDIFF(MONTH, e.join_date, COALESCE(e.exit_date, CURDATE())) AS service_months,
-            CASE WHEN ${PROFILE_INCOMPLETE_SQL} THEN 0 ELSE 1 END AS is_profile_complete,
-            COUNT(*) OVER() AS total_count
+            CASE WHEN ${PROFILE_INCOMPLETE_SQL} THEN 0 ELSE 1 END AS is_profile_complete
      FROM employees e
      LEFT JOIN companies c ON c.id = e.company_id
      INNER JOIN brands b ON b.id = e.brand_id
@@ -149,7 +153,19 @@ export async function listEmployees(
     [...params, pageSize, offset],
   );
 
-  return { employees, total: Number(employees[0]?.total_count ?? 0) };
+  const countJoins = filters.divisionId
+    ? "INNER JOIN positions p ON p.id = e.position_id"
+    : "";
+  const countQuery = queryRows<RowDataPacket & { total: number }>(
+    `SELECT COUNT(*) AS total
+     FROM employees e
+     ${countJoins}
+     ${where}`,
+    params,
+  );
+  const [employees, countRows] = await Promise.all([listQuery, countQuery]);
+
+  return { employees, total: Number(countRows[0]?.total ?? 0) };
 }
 
 export async function countIncompleteEmployees(user: SessionUser): Promise<number> {
