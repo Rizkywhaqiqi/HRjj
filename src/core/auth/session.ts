@@ -22,14 +22,8 @@ interface SessionUserRow extends RowDataPacket {
   session_version: number;
   scope_all: 0 | 1;
   is_active: 0 | 1;
-}
-
-interface PermissionCodeRow extends RowDataPacket {
-  code: string;
-}
-
-interface BrandAccessRow extends RowDataPacket {
-  brand_id: number;
+  permissions_csv: string | null;
+  brand_ids_csv: string | null;
 }
 
 function getSecretKey(): Uint8Array {
@@ -117,10 +111,17 @@ const loadSessionUser = cache(async (): Promise<SessionUser | null> => {
 
   const users = await queryRows<SessionUserRow>(
     `SELECT u.id, u.name, u.email, u.role_id, r.name AS role_name,
-            u.session_version, u.scope_all, u.is_active
+            u.session_version, u.scope_all, u.is_active,
+            GROUP_CONCAT(DISTINCT p.code ORDER BY p.code SEPARATOR ',') AS permissions_csv,
+            GROUP_CONCAT(DISTINCT uba.brand_id ORDER BY uba.brand_id SEPARATOR ',') AS brand_ids_csv
      FROM users u
      INNER JOIN roles r ON r.id = u.role_id
+     LEFT JOIN role_permissions rp ON rp.role_id = u.role_id
+     LEFT JOIN permissions p ON p.id = rp.permission_id
+     LEFT JOIN user_brand_access uba ON uba.user_id = u.id
      WHERE u.id = ?
+     GROUP BY u.id, u.name, u.email, u.role_id, r.name,
+              u.session_version, u.scope_all, u.is_active
      LIMIT 1`,
     [token.userId],
   );
@@ -131,20 +132,6 @@ const loadSessionUser = cache(async (): Promise<SessionUser | null> => {
     return null;
   }
 
-  const permissionRows = await queryRows<PermissionCodeRow>(
-    `SELECT p.code
-     FROM role_permissions rp
-     INNER JOIN permissions p ON p.id = rp.permission_id
-     WHERE rp.role_id = ?
-     ORDER BY p.code`,
-    [user.role_id],
-  );
-
-  const brandRows = await queryRows<BrandAccessRow>(
-    "SELECT brand_id FROM user_brand_access WHERE user_id = ? ORDER BY brand_id",
-    [user.id],
-  );
-
   return {
     id: user.id,
     name: user.name,
@@ -153,8 +140,11 @@ const loadSessionUser = cache(async (): Promise<SessionUser | null> => {
     roleName: user.role_name,
     scopeAll: user.scope_all === 1,
     sessionVersion: user.session_version,
-    brandIds: brandRows.map((row) => row.brand_id),
-    permissions: permissionRows.map((row) => row.code),
+    brandIds: (user.brand_ids_csv ?? "")
+      .split(",")
+      .filter(Boolean)
+      .map(Number),
+    permissions: (user.permissions_csv ?? "").split(",").filter(Boolean),
   };
 });
 

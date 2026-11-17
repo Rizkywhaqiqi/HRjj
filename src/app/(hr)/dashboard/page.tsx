@@ -9,7 +9,7 @@ import { queryRows } from "@/core/db";
 import { hasPermission, requirePermission } from "@/core/rbac/guard";
 import { PERMISSIONS } from "@/core/rbac/permissions";
 import { brandScope, directBrandScope } from "@/core/rbac/scope";
-import { listAuditLogs } from "@/modules/audit";
+import { listRecentAuditLogs } from "@/modules/audit";
 import {
   Badge,
   Card,
@@ -19,12 +19,21 @@ import {
   PageHeader,
   cn,
 } from "@/components/ui/primitives";
-import type { CountRow } from "@/types/database";
 import type { RowDataPacket } from "mysql2/promise";
 
 export const instant = false;
 
-interface BreakdownRow extends RowDataPacket { label: string; total: number; }
+interface BreakdownRow extends RowDataPacket { category: string; label: string; total: number; }
+interface DashboardSummaryRow extends RowDataPacket {
+  active_total: number;
+  inactive_total: number;
+  vacancy_total: number;
+  brand_total: number;
+  company_total: number;
+  division_total: number;
+  position_total: number;
+  turnover_total: number;
+}
 
 const STAT_ICONS = {
   active: UserCheck,
@@ -88,68 +97,69 @@ export default async function DashboardPage() {
   const brandIdScope = directBrandScope(user, "b.id");
   const companyBrandScope = directBrandScope(user, "c.brand_id");
 
-  const [
-    activeRows,
-    inactiveRows,
-    vacancyRows,
-    brandRows,
-    companyRows,
-    divisionRows,
-    positionRows,
-    byBrandRows,
-    byCompanyRows,
-    byDivisionRows,
-    byLocationRows,
-    turnoverRows,
-  ] = await Promise.all([
-    queryRows<CountRow>(
-      `SELECT COUNT(*) AS total FROM employees e
-       WHERE e.is_active = 1 AND ${employeeScope.clause}`,
-      employeeScope.params,
+  const canViewAudit = hasPermission(user, PERMISSIONS.auditView);
+  const [summaryRows, breakdownRows, recentAudit] = await Promise.all([
+    queryRows<DashboardSummaryRow>(
+      `SELECT
+         (SELECT COUNT(*) FROM employees e WHERE e.is_active = 1 AND ${employeeScope.clause}) AS active_total,
+         (SELECT COUNT(*) FROM employees e WHERE e.is_active = 0 AND ${employeeScope.clause}) AS inactive_total,
+         (SELECT COUNT(*) FROM vacancies v WHERE v.status = 'OPEN' AND ${vacancyScope.clause}) AS vacancy_total,
+         (SELECT COUNT(*) FROM brands b WHERE b.is_active = 1 AND ${brandIdScope.clause}) AS brand_total,
+         (SELECT COUNT(*) FROM companies c WHERE c.is_active = 1 AND ${companyBrandScope.clause}) AS company_total,
+         (SELECT COUNT(*) FROM divisions WHERE is_active = 1) AS division_total,
+         (SELECT COUNT(*) FROM positions WHERE is_active = 1) AS position_total,
+         (SELECT COUNT(*) FROM employees e WHERE e.is_active = 0 AND e.exit_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH) AND ${employeeScope.clause}) AS turnover_total`,
+      [
+        ...employeeScope.params,
+        ...employeeScope.params,
+        ...vacancyScope.params,
+        ...brandIdScope.params,
+        ...companyBrandScope.params,
+        ...employeeScope.params,
+      ],
     ),
-    queryRows<CountRow>(
-      `SELECT COUNT(*) AS total FROM employees e
-       WHERE e.is_active = 0 AND ${employeeScope.clause}`,
-      employeeScope.params,
+    queryRows<BreakdownRow>(
+      `SELECT 'brand' AS category, b.name AS label, COUNT(*) AS total
+       FROM employees e INNER JOIN brands b ON b.id=e.brand_id
+       WHERE e.is_active=TRUE AND ${employeeScope.clause}
+       GROUP BY b.id, b.name
+       UNION ALL
+       SELECT 'company' AS category, COALESCE(c.name, 'CV belum dipilih') AS label, COUNT(*) AS total
+       FROM employees e LEFT JOIN companies c ON c.id=e.company_id
+       WHERE e.is_active=TRUE AND ${employeeScope.clause}
+       GROUP BY c.id, c.name
+       UNION ALL
+       SELECT 'division' AS category, d.name AS label, COUNT(*) AS total
+       FROM employees e INNER JOIN positions p ON p.id=e.position_id INNER JOIN divisions d ON d.id=p.division_id
+       WHERE e.is_active=TRUE AND ${employeeScope.clause}
+       GROUP BY d.id, d.name
+       UNION ALL
+       SELECT 'location' AS category, COALESCE(l.name, 'Tanpa lokasi') AS label, COUNT(*) AS total
+       FROM employees e LEFT JOIN locations l ON l.id=e.location_id
+       WHERE e.is_active=TRUE AND ${employeeScope.clause}
+       GROUP BY l.id, l.name
+       ORDER BY category, total DESC, label`,
+      [
+        ...employeeScope.params,
+        ...employeeScope.params,
+        ...employeeScope.params,
+        ...employeeScope.params,
+      ],
     ),
-    queryRows<CountRow>(
-      `SELECT COUNT(*) AS total FROM vacancies v
-       WHERE v.status = 'OPEN' AND ${vacancyScope.clause}`,
-      vacancyScope.params,
-    ),
-    queryRows<CountRow>(
-      `SELECT COUNT(*) AS total FROM brands b
-       WHERE b.is_active = 1 AND ${brandIdScope.clause}`,
-      brandIdScope.params,
-    ),
-    queryRows<CountRow>(
-      `SELECT COUNT(*) AS total FROM companies c
-       WHERE c.is_active = 1 AND ${companyBrandScope.clause}`,
-      companyBrandScope.params,
-    ),
-    queryRows<CountRow>(
-      "SELECT COUNT(*) AS total FROM divisions WHERE is_active = 1",
-    ),
-    queryRows<CountRow>(
-      "SELECT COUNT(*) AS total FROM positions WHERE is_active = 1",
-    ),
-    queryRows<BreakdownRow>(`SELECT b.name AS label, COUNT(*) AS total FROM employees e INNER JOIN brands b ON b.id=e.brand_id WHERE e.is_active=TRUE AND ${employeeScope.clause} GROUP BY b.id, b.name ORDER BY total DESC, label`, employeeScope.params),
-    queryRows<BreakdownRow>(`SELECT COALESCE(c.name, 'CV belum dipilih') AS label, COUNT(*) AS total FROM employees e LEFT JOIN companies c ON c.id=e.company_id WHERE e.is_active=TRUE AND ${employeeScope.clause} GROUP BY c.id, c.name ORDER BY total DESC, label`, employeeScope.params),
-    queryRows<BreakdownRow>(`SELECT d.name AS label, COUNT(*) AS total FROM employees e INNER JOIN positions p ON p.id=e.position_id INNER JOIN divisions d ON d.id=p.division_id WHERE e.is_active=TRUE AND ${employeeScope.clause} GROUP BY d.id, d.name ORDER BY total DESC, label`, employeeScope.params),
-    queryRows<BreakdownRow>(`SELECT COALESCE(l.name, 'Tanpa lokasi') AS label, COUNT(*) AS total FROM employees e LEFT JOIN locations l ON l.id=e.location_id WHERE e.is_active=TRUE AND ${employeeScope.clause} GROUP BY l.id, l.name ORDER BY total DESC, label`, employeeScope.params),
-    queryRows<CountRow>(`SELECT COUNT(*) AS total FROM employees e WHERE e.is_active=FALSE AND e.exit_date >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH) AND ${employeeScope.clause}`, employeeScope.params),
+    canViewAudit ? listRecentAuditLogs(5) : Promise.resolve(null),
   ]);
 
-  const canViewAudit = hasPermission(user, PERMISSIONS.auditView);
-  const recentAudit = canViewAudit
-    ? await listAuditLogs({ page: 1, pageSize: 5 })
-    : null;
+  const summary = summaryRows[0];
+  const byBrandRows = breakdownRows.filter((row) => row.category === "brand");
+  const byCompanyRows = breakdownRows.filter((row) => row.category === "company");
+  const byDivisionRows = breakdownRows.filter((row) => row.category === "division");
+  const byLocationRows = breakdownRows.filter((row) => row.category === "location");
 
   const organisation = [
-    { label: "Brand", value: brandRows[0]?.total ?? 0 },
-    { label: "CV", value: companyRows[0]?.total ?? 0 },
-    { label: "Divisi", value: divisionRows[0]?.total ?? 0 },
-    { label: "Jabatan", value: positionRows[0]?.total ?? 0 },
+    { label: "Brand", value: Number(summary?.brand_total ?? 0) },
+    { label: "CV", value: Number(summary?.company_total ?? 0) },
+    { label: "Divisi", value: Number(summary?.division_total ?? 0) },
+    { label: "Jabatan", value: Number(summary?.position_total ?? 0) },
   ];
 
   return (
@@ -167,21 +177,21 @@ export default async function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Karyawan aktif"
-          value={activeRows[0]?.total ?? 0}
+          value={Number(summary?.active_total ?? 0)}
           hint="Sesuai cakupan brand Anda"
           icon="active"
           tone="brand"
         />
         <StatCard
           label="Karyawan nonaktif"
-          value={inactiveRows[0]?.total ?? 0}
+          value={Number(summary?.inactive_total ?? 0)}
           hint="Arsip, tidak pernah dihapus"
           icon="inactive"
           tone="slate"
         />
         <StatCard
           label="Lowongan terbuka"
-          value={vacancyRows[0]?.total ?? 0}
+          value={Number(summary?.vacancy_total ?? 0)}
           hint="Proses recruitment"
           icon="vacancy"
           tone="sky"
@@ -268,9 +278,9 @@ export default async function DashboardPage() {
             }
           />
           <CardBody>
-            {recentAudit && recentAudit.rows.length > 0 ? (
+            {recentAudit && recentAudit.length > 0 ? (
               <ul className="space-y-3">
-                {recentAudit.rows.map((entry) => (
+                {recentAudit.map((entry) => (
                   <li
                     key={entry.id}
                     className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3 last:border-0 last:pb-0"
@@ -304,7 +314,7 @@ export default async function DashboardPage() {
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
             {[{ title: "Per Brand", rows: byBrandRows }, { title: "Per CV", rows: byCompanyRows }, { title: "Per Divisi", rows: byDivisionRows }, { title: "Per Lokasi", rows: byLocationRows }].map((group) => <div key={group.title}><h3 className="text-sm font-semibold text-slate-800">{group.title}</h3><ul className="mt-3 space-y-2">{group.rows.map((row) => <li key={row.label} className="flex justify-between gap-3 text-sm"><span className="truncate text-slate-600">{row.label}</span><b className="text-slate-900">{row.total}</b></li>)}{group.rows.length === 0 ? <li className="text-xs text-slate-500">Belum ada data.</li> : null}</ul></div>)}
           </div>
-          <div className="mt-6 rounded-xl bg-amber-50 px-4 py-3"><p className="text-xs font-medium uppercase tracking-wide text-amber-700">Turnover 12 bulan terakhir</p><p className="mt-1 text-2xl font-semibold text-amber-900">{turnoverRows[0]?.total ?? 0}</p><p className="text-xs text-amber-800">Karyawan nonaktif dengan tanggal keluar dalam 12 bulan terakhir.</p></div>
+          <div className="mt-6 rounded-xl bg-amber-50 px-4 py-3"><p className="text-xs font-medium uppercase tracking-wide text-amber-700">Turnover 12 bulan terakhir</p><p className="mt-1 text-2xl font-semibold text-amber-900">{Number(summary?.turnover_total ?? 0)}</p><p className="text-xs text-amber-800">Karyawan nonaktif dengan tanggal keluar dalam 12 bulan terakhir.</p></div>
         </CardBody>
       </Card>
     </div>

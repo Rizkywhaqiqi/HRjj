@@ -86,6 +86,18 @@ export async function listAuditLogs(filters: AuditLogFilters): Promise<AuditLogR
   return { rows, total: totalRows[0]?.total ?? 0 };
 }
 
+export async function listRecentAuditLogs(pageSize = 5): Promise<AuditLogRow[]> {
+  return queryRows<AuditLogRow>(
+    `SELECT a.id, a.user_id, a.action, a.entity_type, a.entity_id, a.details,
+            a.ip_address, a.created_at, u.name AS user_name
+     FROM audit_logs a
+     LEFT JOIN users u ON u.id = a.user_id
+     ORDER BY a.id DESC
+     LIMIT ?`,
+    [pageSize],
+  );
+}
+
 export async function listAuditActors(): Promise<AuditActor[]> {
   const rows = await queryRows<ActorRow>(
     "SELECT id, name FROM users ORDER BY name",
