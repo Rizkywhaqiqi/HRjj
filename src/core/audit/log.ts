@@ -1,33 +1,8 @@
+import { shouldRecordAuditAction } from "./policy";
+export { AUDIT_ACTIONS } from "./policy";
+import type { AuditAction } from "./policy";
 import { headers } from "next/headers";
 import { executeSql } from "../db";
-
-export const AUDIT_ACTIONS = {
-  loginSuccess: "auth.login.success",
-  loginFailed: "auth.login.failed",
-  logout: "auth.logout",
-  passwordChange: "auth.password.change",
-  userCreate: "user.create",
-  userUpdate: "user.update",
-  userActivate: "user.activate",
-  userDeactivate: "user.deactivate",
-  userPasswordReset: "user.password.reset",
-  userSessionsRevoked: "user.sessions.revoke",
-  roleCreate: "role.create",
-  roleUpdate: "role.update",
-  roleDelete: "role.delete",
-  rolePermissionsUpdate: "role.permissions.update",
-  featureFlagUpdate: "feature_flag.update",
-  masterDataCreate: "master_data.create",
-  masterDataUpdate: "master_data.update",
-  masterDataDeactivate: "master_data.deactivate",
-  masterDataDelete: "master_data.delete",
-  sensitiveRead: "security.sensitive_read",
-  exportData: "security.export",
-  employeeCreate: "employee.create",
-  employeeDeactivate: "employee.deactivate",
-} as const;
-
-export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
 
 export interface AuditLogInput {
   userId: number | null;
@@ -119,6 +94,8 @@ async function getRequestIp(): Promise<string | null> {
  * the business operation, but it is reported to the server log.
  */
 export async function logAudit(input: AuditLogInput): Promise<void> {
+  if (!shouldRecordAuditAction(input.action)) return;
+
   const details = input.details ? sanitizeValue(input.details) : null;
   const ipAddress = input.ipAddress ?? (await getRequestIp());
 

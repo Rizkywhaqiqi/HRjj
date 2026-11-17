@@ -1,6 +1,9 @@
 import type { RowDataPacket } from "mysql2/promise";
 import { queryRows } from "@/core/db";
+import { RECORDED_AUDIT_ACTIONS } from "@/core/audit/policy";
 import type { AuditLogRow } from "@/types/database";
+
+const recordedActionClause = `a.action IN (${RECORDED_AUDIT_ACTIONS.map(() => "?").join(", ")})`;
 
 interface CountTotalRow extends RowDataPacket {
   total: number;
@@ -36,8 +39,8 @@ export interface AuditActor {
 }
 
 export async function listAuditLogs(filters: AuditLogFilters): Promise<AuditLogResult> {
-  const clauses: string[] = [];
-  const params: (string | number)[] = [];
+  const clauses: string[] = [recordedActionClause];
+  const params: (string | number)[] = [...RECORDED_AUDIT_ACTIONS];
 
   if (filters.action) {
     clauses.push("a.action LIKE ?");
@@ -92,9 +95,10 @@ export async function listRecentAuditLogs(pageSize = 5): Promise<AuditLogRow[]> 
             a.ip_address, a.created_at, u.name AS user_name
      FROM audit_logs a
      LEFT JOIN users u ON u.id = a.user_id
+     WHERE ${recordedActionClause}
      ORDER BY a.id DESC
      LIMIT ?`,
-    [pageSize],
+    [...RECORDED_AUDIT_ACTIONS, pageSize],
   );
 }
 
@@ -108,7 +112,8 @@ export async function listAuditActors(): Promise<AuditActor[]> {
 
 export async function listAuditEntityTypes(): Promise<string[]> {
   const rows = await queryRows<EntityTypeRow>(
-    "SELECT DISTINCT entity_type FROM audit_logs ORDER BY entity_type",
+    `SELECT DISTINCT a.entity_type FROM audit_logs a WHERE ${recordedActionClause} ORDER BY a.entity_type`,
+    [...RECORDED_AUDIT_ACTIONS],
   );
 
   return rows.map((row) => row.entity_type);

@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import ExcelJS from "exceljs";
 import type { RowDataPacket } from "mysql2/promise";
-import { executeSql, queryRows, withTransaction } from "@/core/db";
+import { queryRows, withTransaction } from "@/core/db";
 import { getSessionUser } from "@/core/auth/session";
 import { hasPermission } from "@/core/rbac/guard";
 import { PERMISSIONS } from "@/core/rbac/permissions";
@@ -314,10 +314,13 @@ export async function POST(request: Request) {
       }
       return created;
     });
-    await executeSql(
-      "INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES (?, 'employee.import', 'employee_import', ?, ?)",
-      [actor.id, randomUUID(), JSON.stringify({ count: employeeIds.length })],
-    );
+    await logAudit({
+      userId: actor.id,
+      action: "employee.import",
+      entityType: "employee_import",
+      entityId: randomUUID(),
+      details: { count: employeeIds.length },
+    });
     return NextResponse.json({ committed: employeeIds.length });
   } catch (error) {
     await logAudit({
