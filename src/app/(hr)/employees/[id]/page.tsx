@@ -177,6 +177,14 @@ export default async function EmployeeDetailPage({
               {canViewSensitive ? (
                 <dl className="grid gap-5 sm:grid-cols-2">
                   <DetailField label="NIK" value={employee.nik} />
+                  <DetailField
+                    label="Foto KTP"
+                    value={employee.ktp_photo_path ? (
+                      <a href={`/api/files/ktp/${id}`} target="_blank" rel="noopener noreferrer" className={buttonSecondary}>
+                        Lihat KTP
+                      </a>
+                    ) : "Belum diunggah"}
+                  />
                   <DetailField label="NPWP" value={employee.npwp} />
                   <DetailField label="Nama bank" value={employee.bank_name} />
                   <DetailField label="Nomor rekening" value={employee.bankAccountNumber} />
