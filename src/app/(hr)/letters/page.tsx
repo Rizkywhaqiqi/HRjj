@@ -27,6 +27,8 @@ import {
 } from "@/components/ui/primitives";
 import { FlashAlerts, readFlash } from "@/components/shared/flash";
 import { firstParam, formatDate } from "@/components/shared/format";
+import { listContractTypes } from "@/modules/master-data";
+import { nextContractDate } from "@/modules/contracts/date";
 import LetterComposer from "./letter-composer";
 export const instant = false;
 export default async function LettersPage({
@@ -43,6 +45,7 @@ export default async function LettersPage({
   };
   const employeeId = positiveId(firstParam(params.employeeId));
   const contractId = positiveId(firstParam(params.contractId));
+  const renewal = firstParam(params.flow) === "renewal";
   const rawType = firstParam(params.type) ?? "SKK";
   const type = (rawType in LETTER_LABELS ? rawType : "SKK") as LetterType;
   const canCreate = hasPermission(actor, PERMISSIONS.letterCreate);
@@ -52,8 +55,10 @@ export default async function LettersPage({
   ]);
   const contractDefaults =
     canCreate && contractId && employeeId
-      ? await getLetterContractDefaults(actor, employeeId, contractId)
+      ? await getLetterContractDefaults(actor, employeeId, contractId, renewal)
       : null;
+  const contractTypes = canCreate ? await listContractTypes() : [];
+  const invalidContract = Boolean(contractId && !contractDefaults);
   return (
     <div className="space-y-6">
       <PageHeader
@@ -73,28 +78,48 @@ export default async function LettersPage({
             description="1. Pilih karyawan dan jenis surat · 2. Lengkapi isi · 3. Periksa dan simpan"
           />
           <CardBody>
-            <LetterComposer
-              employees={employees.map((e) => ({
-                id: e.id,
-                full_name: e.full_name,
-                employee_code: e.employee_code,
-              }))}
-              employeeId={employeeId}
-              contractId={contractId}
-              defaults={
-                contractDefaults
-                  ? {
-                      startDate: contractDefaults.start_date,
-                      endDate: contractDefaults.end_date ?? "",
-                      salary: contractDefaults.base_salary ?? "",
-                    }
-                  : undefined
-              }
-              type={type}
-              date={todayInJakarta()}
-              signatory={actor.name}
-              action={createLetterAction}
-            />
+            {invalidContract ? (
+              <p role="alert" className="text-sm text-rose-700">
+                Kontrak tidak ditemukan, sudah diproses, atau sudah memiliki
+                surat. Buka riwayat untuk mengunduh surat yang ada.
+              </p>
+            ) : (
+              <LetterComposer
+                employees={employees.map((e) => ({
+                  id: e.id,
+                  full_name: e.full_name,
+                  employee_code: e.employee_code,
+                }))}
+                employeeId={employeeId}
+                contractId={renewal ? 0 : contractId}
+                previousContractId={renewal ? contractId : 0}
+                contractTypeId={contractDefaults?.contract_type_id}
+                contractTypes={contractTypes
+                  .filter((t) => t.is_active)
+                  .map((t) => ({
+                    id: t.id,
+                    name: t.name,
+                    is_permanent: Boolean(t.is_permanent),
+                  }))}
+                defaults={
+                  contractDefaults
+                    ? {
+                        startDate: renewal
+                          ? nextContractDate(contractDefaults.end_date!)
+                          : contractDefaults.start_date,
+                        endDate: renewal
+                          ? ""
+                          : (contractDefaults.end_date ?? ""),
+                        salary: contractDefaults.base_salary ?? "",
+                      }
+                    : undefined
+                }
+                type={type}
+                date={todayInJakarta()}
+                signatory={actor.name}
+                action={createLetterAction}
+              />
+            )}
           </CardBody>
         </Card>
       ) : null}

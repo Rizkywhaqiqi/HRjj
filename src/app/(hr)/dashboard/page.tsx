@@ -44,6 +44,12 @@ export default async function Dashboard() {
   const canContracts =
     hasPermission(actor, PERMISSIONS.contractView) &&
     (await isFeatureEnabled("contracts"));
+  const canRenew =
+    hasPermission(actor, PERMISSIONS.contractCreate) &&
+    hasPermission(actor, PERMISSIONS.contractDecide) &&
+    hasPermission(actor, PERMISSIONS.letterCreate) &&
+    hasPermission(actor, PERMISSIONS.letterView) &&
+    (await isFeatureEnabled("letters"));
   const [summaries, breakdown, reminders] = await Promise.all([
     queryRows<Summary>(
       `SELECT COUNT(*) total,COALESCE(SUM(e.is_active=1),0) active,COALESCE(SUM(e.is_active=0),0) inactive FROM employees e WHERE ${s.clause}`,
@@ -125,10 +131,16 @@ export default async function Dashboard() {
                       <div className="flex items-center gap-3">
                         <Badge tone={status.tone}>{status.label}</Badge>
                         <Link
-                          href={`/contracts?employeeId=${r.employee_id}`}
+                          href={
+                            canRenew
+                              ? `/letters?employeeId=${r.employee_id}&contractId=${r.id}&type=CONTRACT&flow=renewal`
+                              : `/contracts?employeeId=${r.employee_id}`
+                          }
                           className={buttonSecondary}
                         >
-                          Tindak lanjuti
+                          {canRenew
+                            ? "Buat surat perpanjangan"
+                            : "Tindak lanjuti"}
                         </Link>
                       </div>
                     </div>

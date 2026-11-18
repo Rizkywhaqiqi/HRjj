@@ -1,9 +1,13 @@
 "use server";
 
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
-import { MAX_UPLOAD_BYTES, putStoredFile, deleteStoredFile } from "@/core/storage/files";
+import {
+  MAX_UPLOAD_BYTES,
+  putStoredFile,
+  deleteStoredFile,
+} from "@/core/storage/files";
 import { randomUUID } from "node:crypto";
-import { executeSql, queryRows, withTransaction } from "@/core/db";
+import { queryRows, withTransaction } from "@/core/db";
 import { createBlindIndex, encryptField } from "@/core/crypto/field-encrypt";
 import { AUDIT_ACTIONS, logAudit } from "@/core/audit/log";
 import { firstIssueMessage, redirectWithMessage } from "@/core/http/navigation";
@@ -16,6 +20,7 @@ import {
   employeeActivationSchema,
   employeeUpdateSchema,
 } from "./schema";
+import { hasSensitiveEmployeeChanges } from "./sensitive";
 import { insertEmployeeRecord } from "./insert-employee";
 
 const PATH = "/employees";
@@ -106,7 +111,10 @@ export async function createEmployeeAction(formData: FormData): Promise<void> {
       },
     });
   } catch (error) {
-    if (ktpPhotoPath) await deleteStoredFile(`private/${ktpPhotoPath}`).catch(() => console.error("[storage] Failed to clean uncommitted upload"));
+    if (ktpPhotoPath)
+      await deleteStoredFile(`private/${ktpPhotoPath}`).catch(() =>
+        console.error("[storage] Failed to clean uncommitted upload"),
+      );
     const code =
       typeof error === "object" && error !== null
         ? (error as { code?: string }).code
@@ -219,10 +227,11 @@ export async function updateEmployeeAction(formData: FormData): Promise<void> {
       fail("Kombinasi jabatan dan lokasi tidak valid untuk brand karyawan.");
   }
   assertBrandAccess(actor, brandId);
-  const sensitiveFieldsProvided =
+  const financialFieldsProvided =
     formData.has("npwp") ||
     formData.has("bankName") ||
     formData.has("bankAccountNumber");
+  const sensitiveFieldsProvided = hasSensitiveEmployeeChanges(formData);
   if (
     sensitiveFieldsProvided &&
     !actor.permissions.includes(PERMISSIONS.employeeViewSensitive)
@@ -244,51 +253,76 @@ export async function updateEmployeeAction(formData: FormData): Promise<void> {
     ktpPhotoPath = `ktp/${randomUUID()}.${validPng ? "png" : "jpg"}`;
     await putStoredFile(`private/${ktpPhotoPath}`, bytes);
   }
-  const sensitiveSet = sensitiveFieldsProvided
+  const sensitiveSet = financialFieldsProvided
     ? ", e.npwp_encrypted=?, e.bank_name=?, e.bank_account_encrypted=?"
     : "";
-  const sensitiveValues = sensitiveFieldsProvided
+  const sensitiveValues = financialFieldsProvided
     ? [
         data.npwp ? encryptField(data.npwp) : null,
         data.bankName ?? null,
         data.bankAccountNumber ? encryptField(data.bankAccountNumber) : null,
       ]
     : [];
+  let previousKtpPath: string | null = null;
   let result: ResultSetHeader;
   try {
-  result = await executeSql(
-    `UPDATE employees e SET e.employee_code=?, e.full_name=?, e.birth_place=?, e.birth_date=?, e.address_current=?, e.address_ktp=?, e.email=?, e.phone=?${sensitiveSet}, e.marital_status=?, e.children_count=?, e.company_id=?, e.brand_id=?, e.position_id=?, e.location_id=?, e.join_date=?${ktpPhotoPath ? ", e.ktp_photo_path=?" : ""}${data.nik ? ", e.nik_encrypted=?, e.nik_hash=?" : ""} WHERE e.id=? AND (? OR e.brand_id IN (SELECT brand_id FROM user_brand_access WHERE user_id=?))`,
-    [
-      data.employeeCode,
-      data.fullName,
-      data.birthPlace,
-      data.birthDate,
-      data.addressCurrent,
-      data.addressKtp,
-      data.email,
-      data.phone ? normalizePhone(data.phone) : null,
-      ...sensitiveValues,
-      data.maritalStatus,
-      data.childrenCount,
-      data.companyId,
-      brandId,
-      data.positionId,
-      data.locationId,
-      data.joinDate,
-      ...(ktpPhotoPath ? [ktpPhotoPath] : []),
-      ...(data.nik ? [encryptField(data.nik), createBlindIndex(data.nik)] : []),
-      data.employeeId,
-      actor.scopeAll,
-      actor.id,
-    ],
-  );
+    result = await withTransaction(async (connection) => {
+      const [current] = await connection.execute<RowDataPacket[]>(
+        "SELECT ktp_photo_path FROM employees WHERE id=? AND (? OR brand_id IN (SELECT brand_id FROM user_brand_access WHERE user_id=?)) FOR UPDATE",
+        [data.employeeId, actor.scopeAll, actor.id],
+      );
+      if (!current[0]) throw new Error("EMPLOYEE_NOT_FOUND");
+      previousKtpPath = current[0].ktp_photo_path ?? null;
+      const [updated] = await connection.execute<ResultSetHeader>(
+        `UPDATE employees e SET e.employee_code=?, e.full_name=?, e.birth_place=?, e.birth_date=?, e.address_current=?, e.address_ktp=?, e.email=?, e.phone=?${sensitiveSet}, e.marital_status=?, e.children_count=?, e.company_id=?, e.brand_id=?, e.position_id=?, e.location_id=?, e.join_date=?${ktpPhotoPath ? ", e.ktp_photo_path=?" : ""}${data.nik ? ", e.nik_encrypted=?, e.nik_hash=?" : ""} WHERE e.id=? AND (? OR e.brand_id IN (SELECT brand_id FROM user_brand_access WHERE user_id=?))`,
+        [
+          data.employeeCode,
+          data.fullName,
+          data.birthPlace,
+          data.birthDate,
+          data.addressCurrent,
+          data.addressKtp,
+          data.email,
+          data.phone ? normalizePhone(data.phone) : null,
+          ...sensitiveValues,
+          data.maritalStatus,
+          data.childrenCount,
+          data.companyId,
+          brandId,
+          data.positionId,
+          data.locationId,
+          data.joinDate,
+          ...(ktpPhotoPath ? [ktpPhotoPath] : []),
+          ...(data.nik
+            ? [encryptField(data.nik), createBlindIndex(data.nik)]
+            : []),
+          data.employeeId,
+          actor.scopeAll,
+          actor.id,
+        ],
+      );
+      return updated;
+    });
   } catch {
-    if (ktpPhotoPath) await deleteStoredFile(`private/${ktpPhotoPath}`).catch(() => console.error("[storage] Failed to clean uncommitted upload"));
-    fail("Gagal memperbarui karyawan. Periksa kode dan NIK yang mungkin sudah digunakan.");
+    if (ktpPhotoPath)
+      await deleteStoredFile(`private/${ktpPhotoPath}`).catch(() =>
+        console.error("[storage] Failed to clean uncommitted upload"),
+      );
+    fail(
+      "Gagal memperbarui karyawan. Periksa kode dan NIK yang mungkin sudah digunakan.",
+    );
   }
   if (result.affectedRows !== 1) {
-    if (ktpPhotoPath) await deleteStoredFile(`private/${ktpPhotoPath}`).catch(() => console.error("[storage] Failed to clean uncommitted upload"));
+    if (ktpPhotoPath)
+      await deleteStoredFile(`private/${ktpPhotoPath}`).catch(() =>
+        console.error("[storage] Failed to clean uncommitted upload"),
+      );
     fail("Karyawan tidak ditemukan atau di luar scope Anda.");
+  }
+  if (ktpPhotoPath && previousKtpPath && previousKtpPath !== ktpPhotoPath) {
+    await deleteStoredFile(`private/${previousKtpPath}`).catch(() =>
+      console.error("[storage] Failed to clean replaced KTP"),
+    );
   }
   await logAudit({
     userId: actor.id,

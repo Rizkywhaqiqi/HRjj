@@ -236,15 +236,17 @@ export default async function EmployeeDetailPage({
                 placeholder="Alamat KTP"
                 className={`${inputClass} sm:col-span-2`}
               />
-              <label className="text-sm text-slate-600">
-                Ganti foto KTP (maksimal 1,5 MB)
-                <input
-                  name="ktpPhoto"
-                  type="file"
-                  accept="image/jpeg,image/png"
-                  className="mt-2 block w-full text-sm"
-                />
-              </label>
+              {canViewSensitive ? (
+                <label className="text-sm text-slate-600">
+                  Ganti foto KTP (maksimal 1,5 MB)
+                  <input
+                    name="ktpPhoto"
+                    type="file"
+                    accept="image/jpeg,image/png"
+                    className="mt-2 block w-full text-sm"
+                  />
+                </label>
+              ) : null}
               <select
                 name="companyId"
                 defaultValue={employee.company_id ?? ""}

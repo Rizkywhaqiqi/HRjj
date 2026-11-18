@@ -11,6 +11,14 @@ export const letterCreateSchema = z
       (v) => (v === "" || v === null ? undefined : v),
       z.coerce.number().int().positive().optional(),
     ),
+    previousContractId: z.preprocess(
+      (v) => (v === "" || v === null ? undefined : v),
+      z.coerce.number().int().positive().optional(),
+    ),
+    contractTypeId: z.preprocess(
+      (v) => (v === "" || v === null ? undefined : v),
+      z.coerce.number().int().positive().optional(),
+    ),
     type: z.enum(["SP", "SKK", "CONTRACT", "NDA", "STILL_WORKING"]),
     issuedDate: z.string().date(),
     startDate: optionalDate,
@@ -45,6 +53,21 @@ export const letterCreateSchema = z
       issue("purpose", "Keperluan surat wajib diisi.");
     if (["CONTRACT", "NDA"].includes(d.type) && !d.terms)
       issue("terms", "Ketentuan perjanjian wajib diisi.");
+    if (
+      (d.contractId || d.previousContractId || d.contractTypeId) &&
+      d.type !== "CONTRACT"
+    )
+      issue("contractId", "Data kontrak hanya untuk surat kontrak kerja.");
+    if (d.contractId && d.previousContractId)
+      issue(
+        "contractId",
+        "Pilih kontrak yang sudah ada atau buat perpanjangan baru.",
+      );
+    if (d.type === "CONTRACT" && !d.contractId && !d.contractTypeId)
+      issue(
+        "contractTypeId",
+        "Jenis kontrak wajib dipilih agar pengingat tercatat.",
+      );
     if (d.type === "CONTRACT" && d.salary === undefined)
       issue("salary", "Gaji pokok wajib diisi.");
   });

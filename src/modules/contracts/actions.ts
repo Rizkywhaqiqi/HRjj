@@ -1,13 +1,20 @@
 "use server";
 
 import { nextContractDate } from "./date";
+import { assertNoContractOverlap } from "./overlap";
+import { contractExitDate } from "./policy";
+import { todayInJakarta } from "@/modules/letters/date";
 
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { queryRows, withTransaction } from "@/core/db";
 import { logAudit } from "@/core/audit/log";
 import { firstIssueMessage, redirectWithMessage } from "@/core/http/navigation";
 import { assertBrandAccess } from "@/core/rbac/scope";
-import { requireFeatureEnabled, requirePermission } from "@/core/rbac/guard";
+import {
+  isFeatureEnabled,
+  requireFeatureEnabled,
+  requirePermission,
+} from "@/core/rbac/guard";
 import { PERMISSIONS } from "@/core/rbac/permissions";
 import { contractCreateSchema, contractDecisionSchema } from "./schema";
 
@@ -81,11 +88,25 @@ export async function createContractAction(formData: FormData): Promise<void> {
   let id: number;
   try {
     id = await withTransaction(async (connection) => {
-      const [overlap] = await connection.execute<RowDataPacket[]>(
-        `SELECT id FROM contracts WHERE employee_id = ? AND status = 'RUNNING' AND start_date <= COALESCE(?, '9999-12-31') AND (end_date IS NULL OR end_date >= ?) LIMIT 1 FOR UPDATE`,
-        [data.employeeId, data.endDate, data.startDate],
+      const [locked] = await connection.execute<EmployeeContractRow[]>(
+        "SELECT id employee_id,company_id,brand_id,is_active FROM employees WHERE id=? FOR UPDATE",
+        [data.employeeId],
       );
-      if (overlap[0]) throw new Error("CONTRACT_OVERLAP");
+      if (
+        !locked[0]?.is_active ||
+        locked[0].company_id !== employee.company_id ||
+        locked[0].brand_id !== employee.brand_id
+      )
+        throw new Error(
+          "Data karyawan berubah. Muat ulang sebelum membuat kontrak.",
+        );
+      assertBrandAccess(actor, locked[0].brand_id);
+      await assertNoContractOverlap(
+        connection,
+        data.employeeId,
+        data.startDate,
+        data.endDate,
+      );
       const [result] = await connection.execute<ResultSetHeader>(
         `INSERT INTO contracts (employee_id, contract_type_id, start_date, end_date, base_salary) VALUES (?, ?, ?, ?, ?)`,
         [
@@ -101,7 +122,12 @@ export async function createContractAction(formData: FormData): Promise<void> {
   } catch (error) {
     if (error instanceof Error && error.message === "CONTRACT_OVERLAP")
       fail("Kontrak aktif karyawan masih tumpang tindih.", employeePath);
-    fail("Gagal menyimpan kontrak.", employeePath);
+    fail(
+      error instanceof Error && !("code" in error)
+        ? error.message
+        : "Gagal menyimpan kontrak.",
+      employeePath,
+    );
   }
   await logAudit({
     userId: actor.id,
@@ -134,8 +160,20 @@ export async function decideContractAction(formData: FormData): Promise<void> {
   );
   if (!parsed.success) fail(firstIssueMessage(parsed.error));
   const data = parsed.data;
+  let nextId: number | null = null;
+  let nextEmployeeId = 0;
   try {
-    await withTransaction(async (connection) => {
+    nextId = await withTransaction(async (connection) => {
+      // Same lock order as creation and letter renewal: employee, then contracts.
+      const [employeeRefs] = await connection.execute<RowDataPacket[]>(
+        "SELECT employee_id FROM contracts WHERE id=?",
+        [data.contractId],
+      );
+      if (!employeeRefs[0]) throw new Error("CONTRACT_NOT_FOUND");
+      await connection.execute(
+        "SELECT id FROM employees WHERE id=? FOR UPDATE",
+        [employeeRefs[0].employee_id],
+      );
       const [rows] = await connection.execute<RowDataPacket[]>(
         `SELECT ct.id, ct.employee_id, DATE_FORMAT(ct.end_date, '%Y-%m-%d') AS end_date, ct.base_salary, e.is_active, c.brand_id FROM contracts ct INNER JOIN employees e ON e.id = ct.employee_id INNER JOIN companies c ON c.id = e.company_id WHERE ct.id = ? AND ct.status = 'RUNNING' FOR UPDATE`,
         [data.contractId],
@@ -152,6 +190,7 @@ export async function decideContractAction(formData: FormData): Promise<void> {
       if (!contract || !contract.is_active)
         throw new Error("CONTRACT_NOT_FOUND");
       assertBrandAccess(actor, contract.brand_id);
+      nextEmployeeId = contract.employee_id;
       if (data.decision === "EXTEND") {
         if (
           !contract.end_date ||
@@ -168,11 +207,18 @@ export async function decideContractAction(formData: FormData): Promise<void> {
         if (!typeRows[0]) throw new Error("CONTRACT_TYPE_NOT_FOUND");
         if (typeRows[0].is_permanent === 1)
           throw new Error("CONTRACT_TYPE_PERMANENT");
+        await assertNoContractOverlap(
+          connection,
+          contract.employee_id,
+          data.newStartDate,
+          data.newEndDate,
+          data.contractId,
+        );
         await connection.execute(
           "UPDATE contracts SET status = 'EXTENDED' WHERE id = ?",
           [data.contractId],
         );
-        await connection.execute(
+        const [created] = await connection.execute<ResultSetHeader>(
           "INSERT INTO contracts (employee_id, contract_type_id, previous_contract_id, start_date, end_date, base_salary, status) VALUES (?, ?, ?, ?, ?, ?, 'RUNNING')",
           [
             contract.employee_id,
@@ -183,7 +229,18 @@ export async function decideContractAction(formData: FormData): Promise<void> {
             contract.base_salary,
           ],
         );
+        return created.insertId;
       } else if (data.decision === "PERMANENT") {
+        if (!contract.end_date)
+          throw new Error("Kontrak ini sudah tanpa tanggal akhir.");
+        const startDate = nextContractDate(contract.end_date);
+        await assertNoContractOverlap(
+          connection,
+          contract.employee_id,
+          startDate,
+          null,
+          data.contractId,
+        );
         await connection.execute(
           "UPDATE contracts SET status = 'MADE_PERMANENT' WHERE id = ?",
           [data.contractId],
@@ -192,11 +249,27 @@ export async function decideContractAction(formData: FormData): Promise<void> {
           "SELECT id FROM contract_types WHERE is_permanent = TRUE AND is_active = TRUE LIMIT 1",
         );
         if (!types[0]) throw new Error("PERMANENT_TYPE_NOT_FOUND");
-        await connection.execute(
-          "INSERT INTO contracts (employee_id, contract_type_id, previous_contract_id, start_date, end_date, base_salary, status) VALUES (?, ?, ?, DATE_ADD(COALESCE((SELECT end_date FROM contracts WHERE id = ?), CURDATE()), INTERVAL 1 DAY), NULL, ?, 'RUNNING')",
-          [contract.employee_id, types[0].id, data.contractId, data.contractId, contract.base_salary],
+        const [created] = await connection.execute<ResultSetHeader>(
+          "INSERT INTO contracts (employee_id, contract_type_id, previous_contract_id, start_date, end_date, base_salary, status) VALUES (?, ?, ?, ?, NULL, ?, 'RUNNING')",
+          [
+            contract.employee_id,
+            types[0].id,
+            data.contractId,
+            startDate,
+            contract.base_salary,
+          ],
         );
+        return created.insertId;
       } else {
+        const exitDate = contractExitDate(contract.end_date, todayInJakarta());
+        const [future] = await connection.execute<RowDataPacket[]>(
+          "SELECT id FROM contracts WHERE employee_id=? AND id<>? AND status='RUNNING' AND (end_date IS NULL OR end_date>=?) LIMIT 1 FOR UPDATE",
+          [contract.employee_id, data.contractId, todayInJakarta()],
+        );
+        if (future[0])
+          throw new Error(
+            "Karyawan sudah memiliki kontrak berikutnya. Periksa kontrak tersebut sebelum menonaktifkan.",
+          );
         if (!data.exitReasonId) throw new Error("EXIT_REASON_REQUIRED");
         const [exitReasons] = await connection.execute<RowDataPacket[]>(
           "SELECT id FROM exit_reasons WHERE id = ? AND is_active = TRUE LIMIT 1 FOR UPDATE",
@@ -208,10 +281,11 @@ export async function decideContractAction(formData: FormData): Promise<void> {
           [data.contractId],
         );
         await connection.execute(
-          "UPDATE employees SET is_active = FALSE, exit_date = CURDATE(), exit_reason_id = ? WHERE id = ?",
-          [data.exitReasonId, contract.employee_id],
+          "UPDATE employees SET is_active = FALSE, exit_date = ?, exit_reason_id = ? WHERE id = ?",
+          [exitDate, data.exitReasonId, contract.employee_id],
         );
       }
+      return null;
     });
   } catch (error) {
     fail(
@@ -228,7 +302,9 @@ export async function decideContractAction(formData: FormData): Promise<void> {
               : error instanceof Error &&
                   error.message === "EXIT_REASON_INVALID"
                 ? "Alasan keluar tidak aktif atau tidak ditemukan."
-                : "Keputusan kontrak gagal diproses.",
+                : error instanceof Error && !("code" in error)
+                  ? error.message
+                  : "Keputusan kontrak gagal diproses.",
     );
   }
   await logAudit({
@@ -241,5 +317,17 @@ export async function decideContractAction(formData: FormData): Promise<void> {
       exitReasonId: data.decision === "NOT_EXTEND" ? data.exitReasonId : null,
     },
   });
+  if (
+    nextId &&
+    actor.permissions.includes(PERMISSIONS.letterView) &&
+    actor.permissions.includes(PERMISSIONS.letterCreate) &&
+    (await isFeatureEnabled("letters"))
+  ) {
+    redirectWithMessage(
+      `/letters?employeeId=${nextEmployeeId}&contractId=${nextId}&type=CONTRACT`,
+      "ok",
+      "Kontrak berikutnya tersimpan. Lengkapi surat kontraknya.",
+    );
+  }
   done("Keputusan kontrak berhasil disimpan.");
 }
