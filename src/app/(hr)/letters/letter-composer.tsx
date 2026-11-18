@@ -20,6 +20,9 @@ export default function LetterComposer({
   employees,
   employeeId,
   contractId,
+  previousContractId,
+  contractTypeId,
+  contractTypes,
   defaults,
   type,
   date,
@@ -29,12 +32,21 @@ export default function LetterComposer({
   employees: EmployeeOption[];
   employeeId: number;
   contractId: number;
+  previousContractId: number;
+  contractTypeId?: number;
+  contractTypes: { id: number; name: string; is_permanent: boolean }[];
   defaults?: { startDate: string; endDate: string; salary: string };
   type: LetterType;
   date: string;
   signatory: string;
   action: (form: FormData) => Promise<void>;
 }) {
+  const [selectedContractType, setSelectedContractType] = useState(
+    String(contractTypeId ?? ""),
+  );
+  const permanent =
+    contractTypes.find((t) => String(t.id) === selectedContractType)
+      ?.is_permanent ?? false;
   const [kind, setKind] = useState<LetterType>(type);
   const [preview, setPreview] = useState<Record<string, string> | null>(null);
   const employeeName = (id: string) =>
@@ -69,6 +81,7 @@ export default function LetterComposer({
             name="employeeId"
             required
             defaultValue={employeeId || ""}
+            disabled={Boolean(contractId || previousContractId)}
             className={inputClass}
           >
             <option value="">Pilih karyawan</option>
@@ -96,6 +109,37 @@ export default function LetterComposer({
             ))}
           </select>,
         )}
+        {contractId || previousContractId ? (
+          <input name="employeeId" type="hidden" value={employeeId} />
+        ) : null}
+        {previousContractId && kind === "CONTRACT" ? (
+          <input
+            name="previousContractId"
+            type="hidden"
+            value={previousContractId}
+          />
+        ) : null}
+        {kind === "CONTRACT" && !contractId
+          ? label(
+              "contractTypeId",
+              "Jenis kontrak",
+              <select
+                id="contractTypeId"
+                name="contractTypeId"
+                required
+                value={selectedContractType}
+                onChange={(e) => setSelectedContractType(e.target.value)}
+                className={inputClass}
+              >
+                <option value="">Pilih jenis kontrak</option>
+                {contractTypes.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>,
+            )
+          : null}
         {contractId && kind === "CONTRACT" ? (
           <input name="contractId" type="hidden" value={contractId} />
         ) : null}
@@ -129,6 +173,7 @@ export default function LetterComposer({
               "startDate",
               kind === "SP" ? "Mulai berlaku" : "Tanggal mulai",
               <input
+                readOnly={Boolean(contractId)}
                 defaultValue={defaults?.startDate}
                 id="startDate"
                 name="startDate"
@@ -139,13 +184,21 @@ export default function LetterComposer({
             )}
             {label(
               "endDate",
-              kind === "SP" ? "Akhir berlaku" : "Tanggal akhir (jika ada)",
+              kind === "SP"
+                ? "Akhir berlaku"
+                : kind === "CONTRACT" && !permanent && !contractId
+                  ? "Tanggal akhir kontrak (untuk pengingat)"
+                  : "Tanggal akhir (jika ada)",
               <input
+                readOnly={Boolean(contractId)}
                 defaultValue={defaults?.endDate}
                 id="endDate"
                 name="endDate"
                 type="date"
-                required={kind === "SP"}
+                required={
+                  kind === "SP" ||
+                  (kind === "CONTRACT" && !permanent && !contractId)
+                }
                 className={inputClass}
               />,
             )}
@@ -156,6 +209,7 @@ export default function LetterComposer({
               "salary",
               "Gaji pokok (Rp)",
               <input
+                readOnly={Boolean(contractId && defaults?.salary)}
                 defaultValue={defaults?.salary}
                 id="salary"
                 name="salary"
@@ -227,6 +281,16 @@ export default function LetterComposer({
             />,
           )
         : null}
+      {kind === "CONTRACT" ? (
+        <p className="rounded-xl bg-brand-50 p-3 text-sm text-brand-800">
+          {previousContractId
+            ? "Surat ini membuat kontrak berikutnya dan menyelesaikan pengingat kontrak lama setelah berhasil disimpan. "
+            : "Surat kontrak terhubung ke pencatatan kontrak. "}
+          Kontrak berjangka otomatis muncul di pengingat dashboard mulai H-30,
+          H-7, dan setelah jatuh tempo. Kontrak tetap tidak memiliki pengingat
+          tanggal akhir.
+        </p>
+      ) : null}
       <p className="text-xs text-slate-500">
         Template disiapkan oleh aplikasi. Tinjau data dan isi sebelum menyimpan.
         Surat tersimpan sebagai riwayat, bukan file PDF.

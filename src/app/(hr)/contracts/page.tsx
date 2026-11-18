@@ -284,14 +284,26 @@ export default async function ContractsPage({
                         ) : item.letter_id ? (
                           "Tersedia"
                         ) : null}
+                        {!item.letter_id &&
+                        canCreateLetter &&
+                        item.status === "RUNNING" ? (
+                          <Link
+                            href={`/letters?employeeId=${item.employee_id}&contractId=${item.id}&type=CONTRACT`}
+                            className="font-semibold text-brand-700 hover:underline"
+                          >
+                            Buat surat kontrak ini
+                          </Link>
+                        ) : null}
                         {canCreateLetter &&
+                        canCreate &&
+                        canDecide &&
                         item.status === "RUNNING" &&
                         item.end_date ? (
                           <Link
                             href={`/letters?employeeId=${item.employee_id}&contractId=${item.id}&type=CONTRACT&flow=renewal`}
                             className="font-semibold text-brand-700 hover:underline"
                           >
-                            Buat kontrak perpanjangan
+                            Buat surat perpanjangan
                           </Link>
                         ) : null}
                         {!item.letter_id &&
@@ -321,36 +333,23 @@ export default async function ContractsPage({
                             />
                             <select
                               name="decision"
-                              defaultValue="EXTEND"
+                              required
+                              defaultValue=""
                               className={inputClass}
                             >
-                              <option value="EXTEND">Perpanjang</option>
+                              <option value="" disabled>
+                                Pilih keputusan
+                              </option>
                               <option value="PERMANENT">Jadikan tetap</option>
                               <option value="NOT_EXTEND">
                                 Tidak diperpanjang
                               </option>
                             </select>
-                            <select
-                              name="newContractTypeId"
-                              className={inputClass}
-                            >
-                              <option value="">Jenis kontrak baru</option>
-                              {contractTypes.map((type) => (
-                                <option key={type.id} value={type.id}>
-                                  {type.name}
-                                </option>
-                              ))}
-                            </select>
-                            <input
-                              name="newStartDate"
-                              type="date"
-                              className={inputClass}
-                            />
-                            <input
-                              name="newEndDate"
-                              type="date"
-                              className={inputClass}
-                            />
+                            <p className="text-xs text-slate-500">
+                              Untuk perpanjangan, gunakan Buat surat
+                              perpanjangan pada kolom Surat. Keputusan keluar
+                              hanya setelah kontrak berakhir.
+                            </p>
                             <select name="exitReasonId" className={inputClass}>
                               <option value="">Alasan keluar bila perlu</option>
                               {exitReasons.map((reason) => (
@@ -376,7 +375,17 @@ export default async function ContractsPage({
               </tbody>
             </table>
           </div>
-          <Pagination page={page} pageSize={25} total={total} basePath="/contracts" query={{ employeeId: selectedEmployeeId ? String(selectedEmployeeId) : undefined }} />
+          <Pagination
+            page={page}
+            pageSize={25}
+            total={total}
+            basePath="/contracts"
+            query={{
+              employeeId: selectedEmployeeId
+                ? String(selectedEmployeeId)
+                : undefined,
+            }}
+          />
         </CardBody>
       </Card>
     </div>

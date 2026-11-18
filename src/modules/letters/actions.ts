@@ -8,6 +8,8 @@ import { directBrandScope } from "@/core/rbac/scope";
 import { logAudit } from "@/core/audit/log";
 import { firstIssueMessage, redirectWithMessage } from "@/core/http/navigation";
 import { letterCreateSchema } from "./schema";
+import { assertNoContractOverlap } from "@/modules/contracts/overlap";
+import { validateContractPeriod } from "@/modules/contracts/policy";
 import { createSnapshot } from "./templates";
 export async function createLetterAction(formData: FormData): Promise<void> {
   const actor = await requirePermission(PERMISSIONS.letterCreate);
@@ -18,6 +20,13 @@ export async function createLetterAction(formData: FormData): Promise<void> {
   if (!parsed.success)
     redirectWithMessage("/letters", "error", firstIssueMessage(parsed.error));
   const d = parsed.data;
+  if (d.type === "CONTRACT") {
+    await requireFeatureEnabled("contracts");
+    if (!d.contractId) await requirePermission(PERMISSIONS.contractCreate);
+    if (d.previousContractId)
+      await requirePermission(PERMISSIONS.contractDecide);
+  }
+  let trackedContractId: number | undefined = d.contractId;
   const scope = directBrandScope(actor, "e.brand_id");
   let letterId: number;
   try {
@@ -57,11 +66,64 @@ export async function createLetterAction(formData: FormData): Promise<void> {
         d.contractId &&
         (d.startDate !== contracts[0].start_date ||
           (d.endDate ?? null) !== contracts[0].end_date ||
-          d.salary !== Number(contracts[0].base_salary))
+          (contracts[0].base_salary !== null &&
+            d.salary !== Number(contracts[0].base_salary)))
       )
         throw new Error(
           "Tanggal dan gaji surat harus sesuai data kontrak. Perbarui kontrak terlebih dahulu.",
         );
+      if (d.type === "CONTRACT" && !d.contractId) {
+        if (!e.is_active)
+          throw new Error("Kontrak baru hanya untuk karyawan aktif.");
+        const [types] = await connection.execute<RowDataPacket[]>(
+          "SELECT is_permanent FROM contract_types WHERE id=? AND is_active=TRUE",
+          [d.contractTypeId!],
+        );
+        if (!types[0])
+          throw new Error("Jenis kontrak tidak aktif atau tidak ditemukan.");
+        let previousEnd: string | null | undefined;
+        if (d.previousContractId) {
+          const [previous] = await connection.execute<RowDataPacket[]>(
+            "SELECT DATE_FORMAT(end_date,'%Y-%m-%d') end_date FROM contracts WHERE id=? AND employee_id=? AND status='RUNNING' FOR UPDATE",
+            [d.previousContractId, d.employeeId],
+          );
+          if (!previous[0])
+            throw new Error(
+              "Kontrak lama sudah diputuskan atau tidak sesuai karyawan.",
+            );
+          previousEnd = previous[0].end_date;
+        }
+        validateContractPeriod(
+          d.startDate!,
+          d.endDate ?? null,
+          types[0].is_permanent === 1,
+          previousEnd,
+        );
+        await assertNoContractOverlap(
+          connection,
+          d.employeeId,
+          d.startDate!,
+          d.endDate ?? null,
+          d.previousContractId,
+        );
+        if (d.previousContractId)
+          await connection.execute("UPDATE contracts SET status=? WHERE id=?", [
+            types[0].is_permanent ? "MADE_PERMANENT" : "EXTENDED",
+            d.previousContractId,
+          ]);
+        const [created] = await connection.execute<ResultSetHeader>(
+          "INSERT INTO contracts (employee_id,contract_type_id,previous_contract_id,start_date,end_date,base_salary,status) VALUES (?,?,?,?,?,?,'RUNNING')",
+          [
+            d.employeeId,
+            d.contractTypeId!,
+            d.previousContractId ?? null,
+            d.startDate!,
+            d.endDate ?? null,
+            d.salary!,
+          ],
+        );
+        trackedContractId = created.insertId;
+      }
       const year = Number(d.issuedDate.slice(0, 4));
       await connection.execute(
         "INSERT INTO letter_sequences (company_id,letter_year,next_number) VALUES (?,?,1) ON DUPLICATE KEY UPDATE next_number=next_number",
@@ -110,10 +172,10 @@ export async function createLetterAction(formData: FormData): Promise<void> {
           actor.id,
         ],
       );
-      if (d.contractId)
+      if (trackedContractId)
         await connection.execute(
-          "UPDATE contracts SET letter_id=? WHERE id=?",
-          [r.insertId, d.contractId],
+          "UPDATE contracts SET letter_id=?, base_salary=COALESCE(base_salary,?) WHERE id=?",
+          [r.insertId, d.salary!, trackedContractId],
         );
       return r.insertId;
     });
@@ -125,6 +187,27 @@ export async function createLetterAction(formData: FormData): Promise<void> {
         ? error.message
         : "Surat gagal disimpan. Periksa data dan coba lagi.",
     );
+  }
+  if (trackedContractId && !d.contractId) {
+    await logAudit({
+      userId: actor.id,
+      action: "contract.create",
+      entityType: "contract",
+      entityId: trackedContractId,
+      details: {
+        employeeId: d.employeeId,
+        previousContractId: d.previousContractId ?? null,
+        letterId,
+      },
+    });
+    if (d.previousContractId)
+      await logAudit({
+        userId: actor.id,
+        action: "contract.decision",
+        entityType: "contract",
+        entityId: d.previousContractId,
+        details: { nextContractId: trackedContractId, letterId },
+      });
   }
   await logAudit({
     userId: actor.id,

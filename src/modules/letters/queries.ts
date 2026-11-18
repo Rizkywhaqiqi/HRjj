@@ -55,17 +55,19 @@ export interface LetterContractDefaults extends RowDataPacket {
   start_date: string;
   end_date: string | null;
   base_salary: string | null;
+  contract_type_id: number;
 }
 export async function getLetterContractDefaults(
   user: SessionUser,
   employeeId: number,
   contractId: number,
+  renewal = false,
 ) {
   const s = directBrandScope(user, "e.brand_id");
   return (
     (
       await queryRows<LetterContractDefaults>(
-        `SELECT DATE_FORMAT(ct.start_date,'%Y-%m-%d') start_date,DATE_FORMAT(ct.end_date,'%Y-%m-%d') end_date,ct.base_salary FROM contracts ct JOIN employees e ON e.id=ct.employee_id WHERE ct.id=? AND ct.employee_id=? AND ct.status='RUNNING' AND ${s.clause} LIMIT 1`,
+        `SELECT DATE_FORMAT(ct.start_date,'%Y-%m-%d') start_date,DATE_FORMAT(ct.end_date,'%Y-%m-%d') end_date,ct.base_salary,ct.contract_type_id FROM contracts ct JOIN employees e ON e.id=ct.employee_id WHERE ct.id=? AND ct.employee_id=? AND ct.status='RUNNING' ${renewal ? "AND ct.end_date IS NOT NULL" : "AND ct.letter_id IS NULL"} AND ${s.clause} LIMIT 1`,
         [contractId, employeeId, ...s.params],
       )
     )[0] ?? null

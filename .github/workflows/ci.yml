@@ -68,3 +68,6 @@ jobs:
 
       - name: Seed master data
         run: npm run db:seed
+
+      - name: Contract transaction regression test
+        run: HR_RUN_DB_INTEGRATION=1 node --import tsx --test tests/contracts.integration.ts
