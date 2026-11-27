@@ -1,3 +1,4 @@
+import { SubmitButton } from "@/components/ui/form";
 import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 import { KeyRound, LogOut } from "lucide-react";
@@ -98,13 +99,13 @@ export function AppShell({
               Ganti password
             </Link>
             <form action={logoutAction}>
-              <button
-                type="submit"
+              <SubmitButton
+                unstyled
                 className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
               >
                 <LogOut aria-hidden="true" size={15} />
                 Keluar
-              </button>
+              </SubmitButton>
             </form>
           </div>
         </div>

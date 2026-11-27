@@ -60,24 +60,30 @@ export async function consumeRateLimit(
 
   // Opportunistic cleanup keeps the table bounded without a separate job.
   if (Math.random() < 0.02) {
-    void purgeExpiredRateLimits();
+    await purgeExpiredRateLimits();
   }
 
   return {
     allowed: counter <= options.limit,
     remaining: Math.max(0, options.limit - counter),
-    retryAfterSeconds: Math.max(1, windowStart + options.windowSeconds - nowSeconds),
+    retryAfterSeconds: Math.max(
+      1,
+      windowStart + options.windowSeconds - nowSeconds,
+    ),
   };
 }
 
 export async function purgeExpiredRateLimits(): Promise<number> {
   try {
     const result = await executeSql(
-      "DELETE FROM rate_limit_buckets WHERE expires_at < NOW()",
+      "DELETE FROM rate_limit_buckets WHERE expires_at < NOW() LIMIT 500",
     );
     return result.affectedRows;
   } catch (error) {
-    console.error("[rate-limit] Failed to purge expired buckets.", error instanceof Error ? error.name : "unknown");
+    console.error(
+      "[rate-limit] Failed to purge expired buckets.",
+      error instanceof Error ? error.name : "unknown",
+    );
     return 0;
   }
 }

@@ -6,6 +6,7 @@ import { MAX_UPLOAD_BYTES } from "@/core/storage/files";
 import type { SessionUser } from "@/types/database";
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
+import { isSameOriginMutation } from "@/core/http/origin";
 import ExcelJS from "exceljs";
 import type { RowDataPacket } from "mysql2/promise";
 import { queryRows, withTransaction } from "@/core/db";
@@ -152,6 +153,17 @@ async function parseRows(file: File, actor: SessionUser): Promise<ImportRow[]> {
 }
 
 export async function POST(request: Request) {
+  if (!isSameOriginMutation(request))
+    return NextResponse.json(
+      { error: "Origin tidak diizinkan." },
+      { status: 403 },
+    );
+  const length = Number(request.headers.get("content-length"));
+  if (Number.isFinite(length) && length > MAX_UPLOAD_BYTES + 128 * 1024)
+    return NextResponse.json(
+      { error: "Ukuran permintaan terlalu besar." },
+      { status: 413 },
+    );
   const actor = await getSessionUser();
   if (!actor || !hasPermission(actor, PERMISSIONS.employeeCreate))
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -254,11 +266,17 @@ export async function POST(request: Request) {
     const employeeIds = await withTransaction(async (connection) => {
       const created: number[] = [];
       const organizations = new Map<string, RowDataPacket[]>();
-      async function organization<T extends RowDataPacket>(sql: string, params: (number | null)[]): Promise<T[]> {
+      async function organization<T extends RowDataPacket>(
+        sql: string,
+        params: (number | null)[],
+      ): Promise<T[]> {
         const key = JSON.stringify([sql, params]);
         const cached = organizations.get(key);
         if (cached) return cached as T[];
-        const [result] = await connection.execute<T[]>(sql + " FOR SHARE", params);
+        const [result] = await connection.execute<T[]>(
+          sql + " FOR SHARE",
+          params,
+        );
         organizations.set(key, result);
         return result;
       }

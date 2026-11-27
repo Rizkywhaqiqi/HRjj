@@ -41,6 +41,10 @@ fs.writeFileSync(
   dir + "/data.ts",
   `import { PERMISSIONS } from '@/core/rbac/permissions'; export const user = {...${JSON.stringify(user)},permissions:Object.values(PERMISSIONS)}; export const employees=${JSON.stringify([employee])};export const contracts=${JSON.stringify([contract])};export const types=[{id:1,name:'PKWT',default_months:2,is_permanent:0,is_active:1}];`,
 );
+fs.writeFileSync(
+  dir + "/actions.ts",
+  '"use server"; export async function pendingAction() { await new Promise(resolve => setTimeout(resolve, 800)); }',
+);
 const calls = {
   requirePermission: "Promise.resolve(fixtureUser)",
   requireFeatureEnabled: "Promise.resolve()",
@@ -81,6 +85,22 @@ for (const screen of [
     ),
     edits = [];
   function walk(n) {
+    if (
+      ts.isJsxExpression(n) &&
+      n.expression &&
+      [
+        "createContractAction",
+        "decideContractAction",
+        "createLetterAction",
+      ].includes(n.expression.getText(source))
+    ) {
+      edits.push([
+        n.expression.getStart(source),
+        n.expression.end,
+        "pendingAction",
+      ]);
+      return;
+    }
     if (ts.isCallExpression(n) && calls[n.expression.getText(source)]) {
       edits.push([
         n.getStart(source),
@@ -104,7 +124,7 @@ for (const screen of [
       'from "@/app/(hr)/letters/letter-composer"',
     );
   s =
-    'import {user as fixtureUser,employees as fixtureEmployees,contracts as fixtureContracts,types as fixtureTypes} from "./data";\n' +
+    'import {pendingAction} from "./actions";\nimport {user as fixtureUser,employees as fixtureEmployees,contracts as fixtureContracts,types as fixtureTypes} from "./data";\n' +
     s;
   fs.writeFileSync(dir + "/" + screen.replaceAll("/", "-") + ".tsx", s);
 }

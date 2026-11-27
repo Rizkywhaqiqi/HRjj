@@ -1,25 +1,34 @@
 import { z } from "zod";
 
-const dbSchema = z.object({
-  DB_HOST: z.string().trim().min(1).default("127.0.0.1"),
-  DB_PORT: z.coerce.number().int().min(1).max(65535).default(3306),
-  DB_USER: z.string().min(1).default("root"),
-  DB_PASSWORD: z.string().default(""),
-  DB_NAME: z
-    .string()
-    .regex(/^[A-Za-z0-9_]+$/, "DB_NAME may contain only letters, numbers, and underscores")
-    .default("jojohrspace"),
-  DB_SSL_MODE: z.enum(["disabled", "required", "verify-ca"]).default("disabled"),
-  DB_SSL_CA: z.string().optional(),
-}).superRefine((value, context) => {
-  if (value.DB_SSL_MODE === "verify-ca" && !value.DB_SSL_CA?.trim()) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["DB_SSL_CA"],
-      message: "DB_SSL_CA is required when DB_SSL_MODE is verify-ca",
-    });
-  }
-});
+const dbSchema = z
+  .object({
+    DB_HOST: z.string().trim().min(1).default("127.0.0.1"),
+    DB_PORT: z.coerce.number().int().min(1).max(65535).default(3306),
+    DB_USER: z.string().min(1).default("root"),
+    DB_CONNECTION_LIMIT: z.coerce.number().int().min(1).max(10).default(2),
+    DB_QUEUE_LIMIT: z.coerce.number().int().min(1).max(200).default(20),
+    DB_PASSWORD: z.string().default(""),
+    DB_NAME: z
+      .string()
+      .regex(
+        /^[A-Za-z0-9_]+$/,
+        "DB_NAME may contain only letters, numbers, and underscores",
+      )
+      .default("jojohrspace"),
+    DB_SSL_MODE: z
+      .enum(["disabled", "required", "verify-ca"])
+      .default("disabled"),
+    DB_SSL_CA: z.string().optional(),
+  })
+  .superRefine((value, context) => {
+    if (value.DB_SSL_MODE === "verify-ca" && !value.DB_SSL_CA?.trim()) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["DB_SSL_CA"],
+        message: "DB_SSL_CA is required when DB_SSL_MODE is verify-ca",
+      });
+    }
+  });
 
 const securitySchema = z.object({
   AUTH_SECRET: z.string().min(32, "AUTH_SECRET must be at least 32 characters"),
@@ -29,7 +38,12 @@ const securitySchema = z.object({
   FIELD_HMAC_KEY: z.string().min(1, "FIELD_HMAC_KEY is required"),
   FIELD_KEY_VERSION: z.coerce.number().int().min(1).max(1000).default(1),
   FIELD_ENCRYPTION_KEY_PREVIOUS: z.string().optional(),
-  FIELD_KEY_VERSION_PREVIOUS: z.coerce.number().int().min(1).max(1000).optional(),
+  FIELD_KEY_VERSION_PREVIOUS: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(1000)
+    .optional(),
 });
 
 export type DbEnv = z.infer<typeof dbSchema>;
@@ -46,7 +60,9 @@ function parseEnv<T extends z.ZodType>(schema: T, label: string): z.infer<T> {
     const details = result.error.issues.map(
       (issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`,
     );
-    throw new Error(`Invalid ${label} environment variables: ${details.join("; ")}`);
+    throw new Error(
+      `Invalid ${label} environment variables: ${details.join("; ")}`,
+    );
   }
 
   return result.data;
@@ -77,11 +93,16 @@ export function getSecurityEnv(): SecurityEnv {
 
   const parsed = parseEnv(securitySchema, "security");
 
-  const encryptionKey = decodeKey(parsed.FIELD_ENCRYPTION_KEY, "FIELD_ENCRYPTION_KEY");
+  const encryptionKey = decodeKey(
+    parsed.FIELD_ENCRYPTION_KEY,
+    "FIELD_ENCRYPTION_KEY",
+  );
   const hmacKey = decodeKey(parsed.FIELD_HMAC_KEY, "FIELD_HMAC_KEY");
 
   if (encryptionKey.equals(hmacKey)) {
-    throw new Error("FIELD_ENCRYPTION_KEY and FIELD_HMAC_KEY must be different keys");
+    throw new Error(
+      "FIELD_ENCRYPTION_KEY and FIELD_HMAC_KEY must be different keys",
+    );
   }
 
   const previousKey = parsed.FIELD_ENCRYPTION_KEY_PREVIOUS?.trim();
@@ -96,7 +117,9 @@ export function getSecurityEnv(): SecurityEnv {
     }
 
     if (parsed.FIELD_KEY_VERSION_PREVIOUS >= parsed.FIELD_KEY_VERSION) {
-      throw new Error("FIELD_KEY_VERSION_PREVIOUS must be lower than FIELD_KEY_VERSION");
+      throw new Error(
+        "FIELD_KEY_VERSION_PREVIOUS must be lower than FIELD_KEY_VERSION",
+      );
     }
   } else if (parsed.FIELD_KEY_VERSION_PREVIOUS !== undefined) {
     throw new Error(
@@ -111,4 +134,3 @@ export function getSecurityEnv(): SecurityEnv {
 export function getAppEnv(): AppEnv {
   return { ...getDbEnv(), ...getSecurityEnv() };
 }
-

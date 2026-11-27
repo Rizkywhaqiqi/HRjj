@@ -12,7 +12,7 @@ import { createBlindIndex, encryptField } from "@/core/crypto/field-encrypt";
 import { AUDIT_ACTIONS, logAudit } from "@/core/audit/log";
 import { firstIssueMessage, redirectWithMessage } from "@/core/http/navigation";
 import { assertBrandAccess } from "@/core/rbac/scope";
-import { requirePermission } from "@/core/rbac/guard";
+import { requireFeatureEnabled, requirePermission } from "@/core/rbac/guard";
 import { PERMISSIONS } from "@/core/rbac/permissions";
 import { normalizePhone } from "@/core/normalization";
 import {
@@ -42,6 +42,7 @@ interface EmployeeBrandRow extends RowDataPacket {
 
 export async function createEmployeeAction(formData: FormData): Promise<void> {
   const actor = await requirePermission(PERMISSIONS.employeeCreate);
+  await requireFeatureEnabled("employees");
   const returnPath =
     formData.get("returnPath") === "/employees/new" ? "/employees/new" : PATH;
   const failCreate = (message: string): never =>
@@ -134,6 +135,7 @@ export async function deactivateEmployeeAction(
   formData: FormData,
 ): Promise<void> {
   const actor = await requirePermission(PERMISSIONS.employeeDeactivate);
+  await requireFeatureEnabled("employees");
   const parsed = deactivateEmployeeSchema.safeParse(
     Object.fromEntries(formData.entries()),
   );
@@ -177,6 +179,7 @@ export async function deactivateEmployeeAction(
 
 export async function updateEmployeeAction(formData: FormData): Promise<void> {
   const actor = await requirePermission(PERMISSIONS.employeeUpdate);
+  await requireFeatureEnabled("employees");
   if (!actor.permissions.includes(PERMISSIONS.employeeViewPrivateFields))
     fail("Anda tidak memiliki izin mengubah data pribadi karyawan.");
   const parsed = employeeUpdateSchema.safeParse(

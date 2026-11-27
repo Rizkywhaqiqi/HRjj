@@ -1,5 +1,6 @@
 "use server";
 
+import { assertManageUser, assertRoleAssignment } from "./delegation";
 import { randomUUID } from "node:crypto";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -112,7 +113,8 @@ export async function loginAction(
 
     return {
       status: "error",
-      message: "Terlalu banyak percobaan login. Coba lagi dalam beberapa menit.",
+      message:
+        "Terlalu banyak percobaan login. Coba lagi dalam beberapa menit.",
     };
   }
 
@@ -128,7 +130,11 @@ export async function loginAction(
       action: AUDIT_ACTIONS.loginFailed,
       entityType: "auth",
       details: {
-        reason: !user ? "unknown_email" : !user.isActive ? "inactive" : "bad_password",
+        reason: !user
+          ? "unknown_email"
+          : !user.isActive
+            ? "inactive"
+            : "bad_password",
       },
       ipAddress: ip,
     });
@@ -136,7 +142,9 @@ export async function loginAction(
     return { status: "error", message: "Email atau password salah." };
   }
 
-  await executeSql("UPDATE users SET last_login_at = NOW() WHERE id = ?", [user.id]);
+  await executeSql("UPDATE users SET last_login_at = NOW() WHERE id = ?", [
+    user.id,
+  ]);
   await createStaffSession(user.id, user.sessionVersion);
   await logAudit({
     userId: user.id,
@@ -164,8 +172,7 @@ export async function logoutAction(): Promise<void> {
 }
 
 type PasswordChangeResult =
-  | { ok: true; nextVersion: number }
-  | { ok: false; message: string };
+  { ok: true; nextVersion: number } | { ok: false; message: string };
 
 export async function changePasswordAction(
   _previous: ChangePasswordState,
@@ -182,34 +189,52 @@ export async function changePasswordAction(
     return { status: "error", message: firstIssueMessage(parsed.error) };
   }
 
-  const result = await withTransaction<PasswordChangeResult>(async (connection) => {
-    const [rows] = await connection.execute<
-      Array<RowDataPacket & { password_hash: string; session_version: number }>
-    >(
-      "SELECT password_hash, session_version FROM users WHERE id = ? FOR UPDATE",
-      [user.id],
-    );
-
-    const row = rows[0];
-
-    if (!row) {
-      return { ok: false, message: "Akun tidak ditemukan." };
-    }
-
-    if (!(await verifyPassword(parsed.data.currentPassword, row.password_hash))) {
-      return { ok: false, message: "Password saat ini tidak sesuai." };
-    }
-
-    const nextVersion = row.session_version + 1;
-    const passwordHash = await hashPassword(parsed.data.newPassword);
-
-    await connection.execute(
-      "UPDATE users SET password_hash = ?, session_version = ? WHERE id = ?",
-      [passwordHash, nextVersion, user.id],
-    );
-
-    return { ok: true, nextVersion };
+  const attempt = await consumeRateLimit({
+    key: rateLimitKey("password-change:user", String(user.id)),
+    limit: 5,
+    windowSeconds: LOGIN_WINDOW_SECONDS,
   });
+  if (!attempt.allowed)
+    return {
+      status: "error",
+      message:
+        "Terlalu banyak percobaan ganti password. Coba lagi dalam beberapa menit.",
+    };
+
+  const result = await withTransaction<PasswordChangeResult>(
+    async (connection) => {
+      const [rows] = await connection.execute<
+        Array<
+          RowDataPacket & { password_hash: string; session_version: number }
+        >
+      >(
+        "SELECT password_hash, session_version FROM users WHERE id = ? FOR UPDATE",
+        [user.id],
+      );
+
+      const row = rows[0];
+
+      if (!row) {
+        return { ok: false, message: "Akun tidak ditemukan." };
+      }
+
+      if (
+        !(await verifyPassword(parsed.data.currentPassword, row.password_hash))
+      ) {
+        return { ok: false, message: "Password saat ini tidak sesuai." };
+      }
+
+      const nextVersion = row.session_version + 1;
+      const passwordHash = await hashPassword(parsed.data.newPassword);
+
+      await connection.execute(
+        "UPDATE users SET password_hash = ?, session_version = ? WHERE id = ?",
+        [passwordHash, nextVersion, user.id],
+      );
+
+      return { ok: true, nextVersion };
+    },
+  );
 
   if (!result.ok) {
     return { status: "error", message: result.message };
@@ -252,7 +277,10 @@ export async function createUserAction(formData: FormData): Promise<void> {
     ? []
     : await existingBrandIds(parsed.data.brandIds);
 
-  if (!parsed.data.scopeAll && validBrandIds.length !== parsed.data.brandIds.length) {
+  if (
+    !parsed.data.scopeAll &&
+    validBrandIds.length !== parsed.data.brandIds.length
+  ) {
     fail(USERS_PATH, "Sebagian brand yang dipilih tidak valid.");
   }
 
@@ -261,6 +289,13 @@ export async function createUserAction(formData: FormData): Promise<void> {
 
   try {
     createdUserId = await withTransaction(async (connection) => {
+      await assertRoleAssignment(
+        connection,
+        actor,
+        parsed.data.roleId,
+        parsed.data.scopeAll,
+        validBrandIds,
+      );
       const [result] = await connection.execute<ResultSetHeader>(
         `INSERT INTO users (role_id, name, email, password_hash, scope_all)
          VALUES (?, ?, ?, ?, ?)`,
@@ -283,7 +318,10 @@ export async function createUserAction(formData: FormData): Promise<void> {
       return result.insertId;
     });
   } catch (error) {
-    fail(USERS_PATH, duplicateMessage(error, "Email sudah digunakan oleh pengguna lain."));
+    fail(
+      USERS_PATH,
+      duplicateMessage(error, "Email sudah digunakan oleh pengguna lain."),
+    );
   }
 
   await logAudit({
@@ -352,16 +390,42 @@ export async function updateUserAction(formData: FormData): Promise<void> {
     ? []
     : await existingBrandIds(parsed.data.brandIds);
 
-  if (!parsed.data.scopeAll && validBrandIds.length !== parsed.data.brandIds.length) {
+  if (
+    !parsed.data.scopeAll &&
+    validBrandIds.length !== parsed.data.brandIds.length
+  ) {
     fail(USERS_PATH, "Sebagian brand yang dipilih tidak valid.");
   }
 
   try {
     await withTransaction(async (connection) => {
+      const current = await assertManageUser(
+        connection,
+        actor,
+        parsed.data.userId,
+      );
+      await assertRoleAssignment(
+        connection,
+        actor,
+        parsed.data.roleId,
+        parsed.data.scopeAll,
+        validBrandIds,
+      );
+      if (
+        current.role_name === "Super Admin" &&
+        (current.role_id !== parsed.data.roleId || !parsed.data.isActive)
+      ) {
+        const [remaining] = await connection.execute<RowDataPacket[]>(
+          "SELECT u.id FROM users u JOIN roles r ON r.id=u.role_id WHERE r.name='Super Admin' AND u.is_active=1 AND u.id<>? FOR UPDATE",
+          [parsed.data.userId],
+        );
+        if (!remaining.length)
+          throw new Error("Minimal harus ada satu Super Admin aktif.");
+      }
       await connection.execute(
         `UPDATE users
          SET role_id = ?, name = ?, email = ?, scope_all = ?, is_active = ?,
-             session_version = session_version + ?
+             session_version = session_version + 1
          WHERE id = ?`,
         [
           parsed.data.roleId,
@@ -369,14 +433,14 @@ export async function updateUserAction(formData: FormData): Promise<void> {
           parsed.data.email,
           parsed.data.scopeAll,
           parsed.data.isActive,
-          parsed.data.isActive ? 0 : 1,
           parsed.data.userId,
         ],
       );
 
-      await connection.execute("DELETE FROM user_brand_access WHERE user_id = ?", [
-        parsed.data.userId,
-      ]);
+      await connection.execute(
+        "DELETE FROM user_brand_access WHERE user_id = ?",
+        [parsed.data.userId],
+      );
 
       for (const brandId of validBrandIds) {
         await connection.execute(
@@ -386,12 +450,17 @@ export async function updateUserAction(formData: FormData): Promise<void> {
       }
     });
   } catch (error) {
-    fail(USERS_PATH, duplicateMessage(error, "Email sudah digunakan oleh pengguna lain."));
+    fail(
+      USERS_PATH,
+      duplicateMessage(error, "Email sudah digunakan oleh pengguna lain."),
+    );
   }
 
   await logAudit({
     userId: actor.id,
-    action: parsed.data.isActive ? AUDIT_ACTIONS.userUpdate : AUDIT_ACTIONS.userDeactivate,
+    action: parsed.data.isActive
+      ? AUDIT_ACTIONS.userUpdate
+      : AUDIT_ACTIONS.userDeactivate,
     entityType: "user",
     entityId: parsed.data.userId,
     details: {
@@ -410,7 +479,9 @@ export async function updateUserAction(formData: FormData): Promise<void> {
   done(USERS_PATH, "Pengguna dinonaktifkan dan sesinya dicabut.");
 }
 
-export async function resetUserPasswordAction(formData: FormData): Promise<void> {
+export async function resetUserPasswordAction(
+  formData: FormData,
+): Promise<void> {
   const actor = await requirePermission(PERMISSIONS.userManage);
   const parsed = resetPasswordSchema.safeParse({
     userId: formData.get("userId"),
@@ -429,12 +500,13 @@ export async function resetUserPasswordAction(formData: FormData): Promise<void>
 
   const passwordHash = await hashPassword(parsed.data.newPassword);
 
-  await executeSql(
-    `UPDATE users
-     SET password_hash = ?, session_version = session_version + 1
-     WHERE id = ?`,
-    [passwordHash, parsed.data.userId],
-  );
+  await withTransaction(async (connection) => {
+    await assertManageUser(connection, actor, parsed.data.userId);
+    await connection.execute(
+      "UPDATE users SET password_hash=?, session_version=session_version+1 WHERE id=?",
+      [passwordHash, parsed.data.userId],
+    );
+  });
 
   await logAudit({
     userId: actor.id,
@@ -449,10 +521,15 @@ export async function resetUserPasswordAction(formData: FormData): Promise<void>
     done("/login", "Password Anda direset. Silakan login kembali.");
   }
 
-  done(USERS_PATH, `Password ${target.name} direset dan semua sesinya dicabut.`);
+  done(
+    USERS_PATH,
+    `Password ${target.name} direset dan semua sesinya dicabut.`,
+  );
 }
 
-export async function revokeUserSessionsAction(formData: FormData): Promise<void> {
+export async function revokeUserSessionsAction(
+  formData: FormData,
+): Promise<void> {
   const actor = await requirePermission(PERMISSIONS.userManage);
   const parsed = revokeSessionsSchema.safeParse({
     userId: formData.get("userId"),
@@ -468,10 +545,13 @@ export async function revokeUserSessionsAction(formData: FormData): Promise<void
     fail(USERS_PATH, "Pengguna tidak ditemukan.");
   }
 
-  await executeSql(
-    "UPDATE users SET session_version = session_version + 1 WHERE id = ?",
-    [parsed.data.userId],
-  );
+  await withTransaction(async (connection) => {
+    await assertManageUser(connection, actor, parsed.data.userId);
+    await connection.execute(
+      "UPDATE users SET session_version=session_version+1 WHERE id=?",
+      [parsed.data.userId],
+    );
+  });
 
   await logAudit({
     userId: actor.id,

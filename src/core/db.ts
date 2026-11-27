@@ -5,9 +5,11 @@ import {
   type ResultSetHeader,
   type RowDataPacket,
 } from "mysql2/promise";
+import { getDbEnv } from "./env";
 import { getDbConnectionOptions } from "./db-config";
 
-export type SqlValue = string | number | boolean | Date | Buffer | Uint8Array | null;
+export type SqlValue =
+  string | number | boolean | Date | Buffer | Uint8Array | null;
 export type SqlParams = SqlValue[];
 
 let pool: Pool | undefined;
@@ -24,15 +26,16 @@ export function getPool(): Pool {
   }
 
   if (!pool) {
+    const config = getDbEnv();
     pool = createPool({
       ...getDbConnectionOptions(),
       waitForConnections: true,
       // Vercel can create multiple warm instances. Keep each instance small
       // so the combined connection count stays friendly to Aiven's limits.
-      connectionLimit: 5,
-      maxIdle: 2,
+      connectionLimit: config.DB_CONNECTION_LIMIT,
+      maxIdle: Math.min(2, config.DB_CONNECTION_LIMIT),
       idleTimeout: 60_000,
-      queueLimit: 0,
+      queueLimit: config.DB_QUEUE_LIMIT,
       charset: "utf8mb4",
       enableKeepAlive: true,
       keepAliveInitialDelay: 0,

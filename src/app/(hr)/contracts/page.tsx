@@ -1,3 +1,4 @@
+import { SubmitButton } from "@/components/ui/form";
 import { Pagination, parsePage } from "@/components/shared/pagination";
 import { countContracts } from "@/modules/contracts/queries";
 import Link from "next/link";
@@ -193,14 +194,14 @@ export default async function ContractsPage({
                     className={inputClass}
                   />
                 </label>
-                <button
-                  type="submit"
+                <SubmitButton
+                  unstyled
                   className={`${buttonPrimary} sm:col-span-2 2xl:col-span-5`}
                 >
                   {selectedEmployee
                     ? "Simpan kontrak & lanjut ke surat"
                     : "Simpan kontrak"}
-                </button>
+                </SubmitButton>
               </form>
             </CardBody>
           </Card>
@@ -402,12 +403,12 @@ export default async function ContractsPage({
                                 </option>
                               ))}
                             </select>
-                            <button
-                              type="submit"
+                            <SubmitButton
+                              unstyled
                               className="rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white"
                             >
                               Simpan keputusan
-                            </button>
+                            </SubmitButton>
                           </form>
                         </details>
                       ) : (

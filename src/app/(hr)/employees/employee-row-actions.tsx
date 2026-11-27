@@ -1,4 +1,6 @@
 "use client";
+
+import { SubmitButton } from "@/components/ui/form";
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 import {
@@ -118,7 +120,9 @@ export default function EmployeeRowActions({
                 ))}
               </select>
             </label>
-            <button className={buttonDanger}>Konfirmasi nonaktifkan</button>
+            <SubmitButton unstyled className={buttonDanger}>
+              Konfirmasi nonaktifkan
+            </SubmitButton>
           </form>
         ) : (
           <>

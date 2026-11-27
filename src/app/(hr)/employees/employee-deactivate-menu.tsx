@@ -1,5 +1,7 @@
 "use client";
 
+import { SubmitButton } from "@/components/ui/form";
+
 import { useCallback, useRef, useState } from "react";
 import { AnchoredPopover } from "@/components/ui/anchored-popover";
 import { buttonDanger, inputClass } from "@/components/ui/primitives";
@@ -49,7 +51,12 @@ export default function EmployeeDeactivateMenu({
           </p>
           <label className="grid gap-1 text-xs text-slate-600">
             Tanggal keluar
-            <input name="exitDate" type="date" required className={inputClass} />
+            <input
+              name="exitDate"
+              type="date"
+              required
+              className={inputClass}
+            />
           </label>
           <label className="grid gap-1 text-xs text-slate-600">
             Alasan keluar
@@ -62,9 +69,9 @@ export default function EmployeeDeactivateMenu({
               ))}
             </select>
           </label>
-          <button type="submit" className={buttonDanger}>
+          <SubmitButton unstyled className={buttonDanger}>
             Konfirmasi nonaktif
-          </button>
+          </SubmitButton>
         </form>
       </AnchoredPopover>
     </>

@@ -2,7 +2,10 @@ import { redirect } from "next/navigation";
 import type { ZodError } from "zod";
 
 /** Blocks open redirects: only same-origin absolute paths are allowed. */
-export function sanitizeNextPath(value: unknown, fallback = "/dashboard"): string {
+export function sanitizeNextPath(
+  value: unknown,
+  fallback = "/dashboard",
+): string {
   if (typeof value !== "string") {
     return fallback;
   }
@@ -12,12 +15,15 @@ export function sanitizeNextPath(value: unknown, fallback = "/dashboard"): strin
   if (
     !trimmed.startsWith("/") ||
     trimmed.startsWith("//") ||
-    trimmed.includes("\\")
+    trimmed.includes("\\") ||
+    /[\u0000-\u001f\u007f]/.test(trimmed)
   ) {
     return fallback;
   }
 
-  return trimmed;
+  const normalized = new URL(trimmed, "https://internal.invalid");
+  if (normalized.origin !== "https://internal.invalid") return fallback;
+  return `${normalized.pathname}${normalized.search}${normalized.hash}`;
 }
 
 export function firstIssueMessage(error: ZodError): string {

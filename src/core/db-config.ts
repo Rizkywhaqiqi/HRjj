@@ -20,9 +20,13 @@ export function getDbConnectionOptions(
     ...overrides,
   };
 
-  if (env.DB_SSL_MODE === "required") {
+  const sslMode =
+    process.env.VERCEL && env.DB_SSL_MODE === "disabled"
+      ? "required"
+      : env.DB_SSL_MODE;
+  if (sslMode === "required") {
     options.ssl = { rejectUnauthorized: false };
-  } else if (env.DB_SSL_MODE === "verify-ca") {
+  } else if (sslMode === "verify-ca") {
     options.ssl = {
       ca: env.DB_SSL_CA,
       rejectUnauthorized: true,

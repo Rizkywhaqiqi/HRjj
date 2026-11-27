@@ -1,5 +1,7 @@
 "use client";
 
+import { SubmitButton } from "@/components/ui/form";
+
 import { Suspense, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { KeyRound, LogOut, Menu, X } from "lucide-react";
@@ -141,13 +143,13 @@ export function MobileNav({
               Ganti password
             </Link>
             <form action={logoutAction}>
-              <button
-                type="submit"
+              <SubmitButton
+                unstyled
                 className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 focus-visible:outline-2 focus-visible:outline-rose-600"
               >
                 <LogOut aria-hidden="true" size={16} />
                 Keluar
-              </button>
+              </SubmitButton>
             </form>
           </div>
         </div>
