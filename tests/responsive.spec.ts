@@ -3,6 +3,8 @@ import { expect, test } from "@playwright/test";
 const screens = [
   "dashboard",
   "finance",
+  "finance-requests",
+  "finance-history",
   "contracts",
   "reports",
   "letters",
@@ -67,7 +69,7 @@ test("mobile navigation closes on Escape, route selection and desktop resize", a
   await expect(dialog).toBeHidden();
   await expect(trigger).toBeFocused();
   await trigger.click();
-  await dialog.getByRole("link", { name: "Karyawan", exact: true }).click();
+  await dialog.getByRole("link", { name: "Data Karyawan", exact: true }).click();
   await expect(dialog).toBeHidden();
   await trigger.click();
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -174,4 +176,24 @@ test("finance detail keeps amounts, forms and decisions readable on mobile and d
         fullPage: true,
       });
   }
+});
+
+
+test("navigation groups expand once and child buttons open real finance pages", async ({page})=>{
+ await page.setViewportSize({width:1440,height:900});
+ await page.goto('/responsive-check/contracts');
+ await page.waitForFunction(()=>document.documentElement.dataset.fixtureReady==='true');
+ const sidebar=page.locator('aside');
+ await expect(sidebar.getByRole('button',{name:'Administrasi HR',exact:true})).toHaveAttribute('aria-expanded','true');
+ const finance=sidebar.getByRole('button',{name:'Keuangan',exact:true});
+ await expect(finance).toHaveAttribute('aria-expanded','false');
+ await expect(sidebar.getByRole('link',{name:'Pengajuan Gaji',exact:true})).toBeHidden();
+ await finance.click();
+ await sidebar.getByRole('link',{name:'Pengajuan Gaji',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Pengajuan Gaji',exact:true})).toBeVisible();
+ await expect(sidebar.getByRole('button',{name:'Keuangan',exact:true})).toHaveAttribute('aria-expanded','true');
+ await expect(sidebar.getByRole('link',{name:'Pengajuan Gaji',exact:true})).toHaveAttribute('aria-current','page');
+ await sidebar.getByRole('link',{name:'Riwayat Gaji',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Riwayat Gaji',exact:true})).toBeVisible();
+ await page.screenshot({path:'test-results/navigation-desktop.png',fullPage:true});
 });

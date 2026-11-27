@@ -1,9 +1,10 @@
 "use client";
+import { matchesNavigation } from "@/core/navigation";
 
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import type { NavSection } from "@/core/module-registry";
 import { NavIcon } from "@/components/ui/nav-icon";
 
@@ -19,12 +20,10 @@ export function NavSectionGroups({
   mobile?: boolean;
 }) {
   const pathname = usePathname();
+  const search = useSearchParams().toString();
   const activeHref = sections
     .flatMap((section) => section.items)
-    .filter(
-      (item) =>
-        pathname === item.href || pathname.startsWith(`${item.href}/`),
-    )
+    .filter((item) => matchesNavigation(item.href, pathname, search))
     .sort((left, right) => right.href.length - left.href.length)[0]?.href;
   const activeSection = sections.find((section) =>
     section.items.some((item) => item.href === activeHref),
@@ -34,7 +33,7 @@ export function NavSectionGroups({
     <>
       {sections.map((section, index) => (
         <NavSectionGroup
-          key={`${section.label}-${activeHref ?? "none"}`}
+          key={`${section.label}-${pathname}-${search}`}
           section={section}
           sectionId={`${idPrefix}-${index}`}
           activeHref={activeHref}
@@ -63,26 +62,30 @@ function NavSectionGroup({
   mobile: boolean;
 }) {
   const [openOverride, setOpenOverride] = useState<boolean | null>(null);
-  const open = openOverride ?? (mobile || isActiveSection);
+  const open = openOverride ?? isActiveSection;
 
   return (
     <section>
       {section.standalone ? null : (
         <button
           type="button"
+          aria-label={section.label}
           aria-expanded={open}
           aria-controls={`${sectionId}-items`}
           onClick={() => setOpenOverride(!open)}
           className={`flex w-full items-center gap-2 rounded-lg px-3 ${
-            mobile ? "min-h-11 py-3" : "min-h-10 py-2"
-          } text-left text-xs font-semibold tracking-wide transition focus-visible:outline-2 focus-visible:outline-brand-600 ${
+            mobile ? "min-h-11 py-3" : "min-h-11 py-2"
+          } text-left text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-brand-600 ${
             isActiveSection
               ? "text-brand-700"
               : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
           }`}
         >
           <span>{section.label}</span>
-          <span className="ml-auto rounded-full bg-slate-100 px-1.5 py-0.5 text-[0.6rem] text-slate-500">
+          <span
+            aria-hidden="true"
+            className="ml-auto rounded-full bg-slate-100 px-1.5 py-0.5 text-[0.6rem] text-slate-500"
+          >
             {section.items.length}
           </span>
           <ChevronDown
@@ -95,7 +98,11 @@ function NavSectionGroup({
       <ul
         id={`${sectionId}-items`}
         hidden={!section.standalone && !open}
-        className={section.standalone ? "space-y-1" : "mt-1 space-y-1"}
+        className={
+          section.standalone
+            ? "space-y-1"
+            : "ml-3 mt-1 space-y-1 border-l border-slate-200 pl-2"
+        }
       >
         {section.items.map((item) => {
           const isActive = item.href === activeHref;
@@ -107,7 +114,7 @@ function NavSectionGroup({
                 onClick={onNavigate}
                 aria-current={isActive ? "page" : undefined}
                 className={`flex items-center gap-3 rounded-xl px-3 ${
-                  mobile ? "min-h-11 py-3" : "min-h-10 py-2"
+                  mobile ? "min-h-11 py-3" : "min-h-11 py-2"
                 } text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-600 ${
                   isActive
                     ? "bg-brand-600 text-white shadow-sm"

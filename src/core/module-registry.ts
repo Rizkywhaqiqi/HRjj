@@ -30,7 +30,7 @@ export interface NavSection {
  */
 export const NAV_SECTIONS: readonly NavSection[] = [
   {
-    label: "Ruang kerja HR",
+    label: "Dashboard",
     standalone: true,
     items: [
       {
@@ -39,39 +39,103 @@ export const NAV_SECTIONS: readonly NavSection[] = [
         icon: "dashboard",
         permission: PERMISSIONS.dashboardView,
       },
+    ],
+  },
+  {
+    label: "Administrasi HR",
+    items: [
       {
-        label: "Karyawan",
+        label: "Data Karyawan",
         href: "/employees",
         icon: "users",
         permission: PERMISSIONS.employeeView,
         featureKey: "employees",
       },
       {
-        label: "Kontrak & pengingat",
+        label: "Kontrak & Pengingat",
         href: "/contracts",
         icon: "briefcase",
         permission: PERMISSIONS.contractView,
         featureKey: "contracts",
       },
       {
-        label: "Surat & riwayat",
+        label: "Surat & Riwayat",
         href: "/letters",
         icon: "history",
         permission: PERMISSIONS.letterView,
         featureKey: "letters",
       },
+    ],
+  },
+  {
+    label: "Keuangan",
+    items: [
       {
-        label: "Laporan",
+        label: "Data Keuangan",
+        href: "/finance",
+        icon: "users",
+        permission: PERMISSIONS.financeView,
+        featureKey: "employees",
+      },
+      {
+        label: "Pengajuan Gaji",
+        href: "/finance/requests",
+        icon: "briefcase",
+        permission: PERMISSIONS.financeView,
+        featureKey: "employees",
+      },
+      {
+        label: "Riwayat Gaji",
+        href: "/finance/history",
+        icon: "history",
+        permission: PERMISSIONS.financeView,
+        featureKey: "employees",
+      },
+    ],
+  },
+  {
+    label: "Laporan",
+    items: [
+      {
+        label: "Laporan Karyawan",
         href: "/reports",
         icon: "history",
         permission: PERMISSIONS.reportView,
         featureKey: "reports",
       },
-      { label: "Keuangan karyawan", href: "/finance", icon: "briefcase", permission: PERMISSIONS.financeView, featureKey: "employees" },
+    ],
+  },
+  {
+    label: "Master Data",
+    items: [
       {
-        label: "Master data",
+        label: "Semua Master Data",
         href: "/master-data",
         icon: "building",
+        permission: PERMISSIONS.masterDataView,
+      },
+      {
+        label: "Brand & CV",
+        href: "/master-data?section=organisation",
+        icon: "building",
+        permission: PERMISSIONS.masterDataView,
+      },
+      {
+        label: "Jabatan & Divisi",
+        href: "/master-data?section=positions",
+        icon: "briefcase",
+        permission: PERMISSIONS.masterDataView,
+      },
+      {
+        label: "Outlet",
+        href: "/master-data?section=locations",
+        icon: "building",
+        permission: PERMISSIONS.masterDataView,
+      },
+      {
+        label: "Referensi HR",
+        href: "/master-data?section=references",
+        icon: "history",
         permission: PERMISSIONS.masterDataView,
       },
     ],
@@ -86,19 +150,19 @@ export const NAV_SECTIONS: readonly NavSection[] = [
         permission: PERMISSIONS.userView,
       },
       {
-        label: "Peran & izin",
+        label: "Peran & Izin",
         href: "/settings/roles",
         icon: "shield",
         permission: PERMISSIONS.roleView,
       },
       {
-        label: "Modul aplikasi",
+        label: "Modul Aplikasi",
         href: "/settings/feature-flags",
         icon: "toggle",
         permission: PERMISSIONS.featureFlagManage,
       },
       {
-        label: "Riwayat aktivitas",
+        label: "Riwayat Aktivitas",
         href: "/settings/audit-logs",
         icon: "history",
         permission: PERMISSIONS.auditView,

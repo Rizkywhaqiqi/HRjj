@@ -2,7 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createConnection, type RowDataPacket } from "mysql2/promise";
-import { financeDirectory } from "../src/modules/finance/queries";
+import {
+  financeDirectory,
+  listSalaryChanges,
+} from "../src/modules/finance/queries";
 import { getLetter } from "../src/modules/letters/queries";
 import { getPool } from "../src/core/db";
 import type { SessionUser } from "../src/types/database";
@@ -21,18 +24,42 @@ test(
     });
     const code = "FIN-" + randomUUID().slice(0, 12);
     let id = 0;
-    const created: {table:string;id:number}[]=[];
-    async function insert(table:string,columns:string,values: (string|number)[]) {
-      const [r]=await conn.execute<import('mysql2/promise').ResultSetHeader>(`INSERT INTO ${table} (${columns}) VALUES (${values.map(()=>'?').join(',')})`,values);
-      created.unshift({table,id:r.insertId});return r.insertId;
+    const created: { table: string; id: number }[] = [];
+    async function insert(
+      table: string,
+      columns: string,
+      values: (string | number)[],
+    ) {
+      const [r] = await conn.execute<import("mysql2/promise").ResultSetHeader>(
+        `INSERT INTO ${table} (${columns}) VALUES (${values.map(() => "?").join(",")})`,
+        values,
+      );
+      created.unshift({ table, id: r.insertId });
+      return r.insertId;
     }
     try {
-      const brandId=await insert('brands','code,name',[code,code]);
-      const companyId=await insert('companies','brand_id,name',[brandId,code]);
-      const divisionId=await insert('divisions','name',[code]);
-      const positionId=await insert('positions','division_id,name',[divisionId,code]);
-      const locationId=await insert('locations','brand_id,name',[brandId,code]);
-      const org=[{company_id:companyId,brand_id:brandId,position_id:positionId,location_id:locationId}];
+      const brandId = await insert("brands", "code,name", [code, code]);
+      const companyId = await insert("companies", "brand_id,name", [
+        brandId,
+        code,
+      ]);
+      const divisionId = await insert("divisions", "name", [code]);
+      const positionId = await insert("positions", "division_id,name", [
+        divisionId,
+        code,
+      ]);
+      const locationId = await insert("locations", "brand_id,name", [
+        brandId,
+        code,
+      ]);
+      const org = [
+        {
+          company_id: companyId,
+          brand_id: brandId,
+          position_id: positionId,
+          location_id: locationId,
+        },
+      ];
       const [users] = await conn.query<RowDataPacket[]>(
         "SELECT id FROM users LIMIT 1",
       );
@@ -86,10 +113,33 @@ test(
         brandIds: [],
         permissions: ["finance.view"],
       } as unknown as SessionUser;
-      const [letter]=await conn.execute<import('mysql2/promise').ResultSetHeader>("INSERT INTO letters(letter_number,type,employee_id,company_id,file_path,status,issued_date,metadata,created_by) VALUES (?,'CONTRACT',?,?,?,'ISSUED','2026-11-01',?,?)",[code,id,org[0].company_id,'snapshot:test',JSON.stringify({salary:'1900000'}),userId]);
-    assert.equal(await getLetter({...actor,permissions:['letter.view']},letter.insertId),null);
-    assert.ok(await getLetter({...actor,permissions:['letter.view','finance.view']},letter.insertId));
-    const oct = await financeDirectory(actor, {
+      const [letter] = await conn.execute<
+        import("mysql2/promise").ResultSetHeader
+      >(
+        "INSERT INTO letters(letter_number,type,employee_id,company_id,file_path,status,issued_date,metadata,created_by) VALUES (?,'CONTRACT',?,?,?,'ISSUED','2026-11-01',?,?)",
+        [
+          code,
+          id,
+          org[0].company_id,
+          "snapshot:test",
+          JSON.stringify({ salary: "1900000" }),
+          userId,
+        ],
+      );
+      assert.equal(
+        await getLetter(
+          { ...actor, permissions: ["letter.view"] },
+          letter.insertId,
+        ),
+        null,
+      );
+      assert.ok(
+        await getLetter(
+          { ...actor, permissions: ["letter.view", "finance.view"] },
+          letter.insertId,
+        ),
+      );
+      const oct = await financeDirectory(actor, {
         month: "2026-10",
         search: code,
       });
@@ -108,15 +158,27 @@ test(
         { month: "2026-11", search: code },
       );
       assert.equal(denied.rows.length, 0);
+      const queue = await listSalaryChanges(actor, "requests");
+      assert.ok(
+        queue.rows.some((r) => r.employee_id === id && r.status === "PENDING"),
+      );
+      const history = await listSalaryChanges(actor, "history");
+      assert.equal(history.rows.filter((r) => r.employee_id === id).length, 2);
+      const hidden = await listSalaryChanges(
+        { ...actor, scopeAll: false, brandIds: [] },
+        "requests",
+      );
+      assert.equal(hidden.total, 0);
     } finally {
       if (id) {
         await conn.execute("DELETE FROM letters WHERE employee_id=?", [id]);
-      await conn.execute("DELETE FROM salary_changes WHERE employee_id=?", [
+        await conn.execute("DELETE FROM salary_changes WHERE employee_id=?", [
           id,
         ]);
         await conn.execute("DELETE FROM employees WHERE id=?", [id]);
       }
-      for(const row of created) await conn.execute(`DELETE FROM ${row.table} WHERE id=?`,[row.id]);
+      for (const row of created)
+        await conn.execute(`DELETE FROM ${row.table} WHERE id=?`, [row.id]);
       await conn.end();
       await getPool().end();
     }
