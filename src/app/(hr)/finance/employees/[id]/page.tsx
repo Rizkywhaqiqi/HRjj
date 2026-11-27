@@ -1,3 +1,5 @@
+import { formatDate } from "@/components/shared/format";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requirePermission, requireFeatureEnabled } from "@/core/rbac/guard";
@@ -46,28 +48,41 @@ export default async function FinanceDetail({
   const { current, future } = data;
   const can = (code: string) => actor.permissions.includes(code);
   return (
-    <div className="space-y-5">
+    <div className="finance-workspace space-y-5">
+      <nav
+        aria-label="Breadcrumb"
+        className="flex min-w-0 items-center gap-2 text-xs text-slate-500"
+      >
+        <Link
+          href="/finance"
+          className="min-h-11 content-center hover:text-brand-700"
+        >
+          Keuangan karyawan
+        </Link>
+        <ChevronRight size={13} aria-hidden="true" />
+        <span className="truncate">Profil keuangan</span>
+      </nav>
       <PageHeader
-        title={`Keuangan · ${e.full_name}`}
+        title={e.full_name}
         description={`${e.employee_code} · ${e.company_name ?? "CV belum ditentukan"} · ${e.brand_name}`}
         action={
           <Link href="/finance" className={buttonSecondary}>
-            Kembali ke daftar
+            <ArrowLeft size={15} aria-hidden="true" /> Kembali ke daftar
           </Link>
         }
       />
       <FlashAlerts {...readFlash(await searchParams)} />
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
+        <Card className="border-brand-900! bg-brand-900!">
           <CardBody>
-            <p className="text-sm text-slate-500">Gaji berlaku hari ini</p>
-            <p className="mt-2 text-xl font-semibold">
+            <p className="text-sm text-brand-100">Gaji berlaku hari ini</p>
+            <p className="mt-3 break-words text-xl font-semibold tracking-tight text-white sm:text-2xl">
               {money(current?.amount)}
             </p>
-            <p className="text-xs text-slate-500">
+            <p className="mt-2 text-xs leading-5 text-brand-100">
               {current
-                ? `Sejak ${current.effective_date}`
-                : "Ajukan pencatatan awal; gaji kontrak lama tidak ditebak otomatis."}
+                ? `Sejak ${formatDate(current.effective_date)}`
+                : "Belum ada gaji disetujui. Ajukan pencatatan awal untuk memulai."}
             </p>
           </CardBody>
         </Card>
@@ -77,7 +92,7 @@ export default async function FinanceDetail({
             <p className="mt-2 text-xl font-semibold">{future.length}</p>
             {future.slice(0, 3).map((s) => (
               <p key={s.id} className="text-sm">
-                {s.effective_date}: {money(s.amount)}
+                {formatDate(s.effective_date)}: {money(s.amount)}
               </p>
             ))}
           </CardBody>
@@ -111,8 +126,8 @@ export default async function FinanceDetail({
       {can(PERMISSIONS.financeManage) && e.is_active ? (
         <Card>
           <CardHeader
-            title="Ajukan pencatatan / perubahan gaji"
-            description="Nominal tidak mengubah kontrak atau payroll lama. Persetujuan harus dilakukan pengguna lain."
+            title="Pengajuan perubahan gaji"
+            description="Isi nominal dan tanggal berlaku, lalu ajukan kepada pemeriksa."
           />
           <CardBody>
             <form
@@ -120,7 +135,7 @@ export default async function FinanceDetail({
               className="grid gap-3 sm:grid-cols-2"
             >
               <input type="hidden" name="employeeId" value={id} />
-              <label className="grid gap-1 text-sm">
+              <label className="grid gap-1.5 text-sm font-medium text-slate-600">
                 Gaji pokok baru (Rp)
                 <input
                   required
@@ -130,7 +145,7 @@ export default async function FinanceDetail({
                   className={inputClass}
                 />
               </label>
-              <label className="grid gap-1 text-sm">
+              <label className="grid gap-1.5 text-sm font-medium text-slate-600">
                 Tanggal berlaku
                 <input
                   required
@@ -174,7 +189,7 @@ export default async function FinanceDetail({
           <CardBody>
             <form action={verifyEmployeeAction} className="grid gap-3">
               <input type="hidden" name="employeeId" value={id} />
-              <label className="grid gap-1 text-sm">
+              <label className="grid gap-1.5 text-sm font-medium text-slate-600">
                 Catatan pemeriksaan
                 <input
                   name="note"
@@ -193,8 +208,8 @@ export default async function FinanceDetail({
       ) : null}
       <Card>
         <CardHeader
-          title="Riwayat dan pengajuan gaji"
-          description="Maksimal 100 catatan terbaru. Riwayat disetujui tidak dapat diedit atau dihapus."
+          title="Riwayat perubahan gaji"
+          description="Pengajuan terbaru, keputusan pemeriksa, dan tanggal mulai berlaku."
         />
         <CardBody>
           <div className="space-y-4">
@@ -202,12 +217,12 @@ export default async function FinanceDetail({
               changes.map((s) => (
                 <article
                   key={s.id}
-                  className="rounded-xl border border-slate-200 p-4"
+                  className="rounded-xl border border-slate-200 p-4 sm:p-5"
                 >
                   <div className="flex flex-wrap justify-between gap-2">
                     <div>
                       <p className="font-semibold">
-                        {money(s.amount)} · berlaku {s.effective_date}
+                        {money(s.amount)} · berlaku {formatDate(s.effective_date)}
                       </p>
                       <p className="mt-1 break-words text-sm text-slate-600">
                         {s.reason}
@@ -255,7 +270,7 @@ export default async function FinanceDetail({
                       className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]"
                     >
                       <input type="hidden" name="id" value={s.id} />
-                      <label className="grid gap-1 text-sm">
+                      <label className="grid gap-1.5 text-sm font-medium text-slate-600">
                         Catatan keputusan
                         <input
                           name="note"
@@ -321,7 +336,7 @@ export default async function FinanceDetail({
                 className="rounded-xl border border-slate-200 p-3 text-sm"
               >
                 <p className="font-semibold">
-                  {h.effective_date} · {h.company_name ?? "CV belum ditentukan"}{" "}
+                  {formatDate(h.effective_date)} · {h.company_name ?? "CV belum ditentukan"}{" "}
                   / {h.brand_name}
                 </p>
                 <p>

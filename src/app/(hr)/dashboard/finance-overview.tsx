@@ -1,3 +1,4 @@
+import { ArrowRight, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import type { SessionUser } from "@/types/database";
 import { financeDirectory } from "@/modules/finance/queries";
@@ -18,14 +19,19 @@ export default async function FinanceOverview({
     { month: jakartaToday().slice(0, 7) },
     1,
   );
+  const periodLabel = new Intl.DateTimeFormat("id-ID", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${data.period.start}T00:00:00Z`));
   return (
     <Card>
       <CardHeader
-        title="Pekerjaan keuangan"
-        description={`Periode ${data.period.month} · mengikuti cakupan brand akun`}
+        title="Ringkasan keuangan"
+        description={`${periodLabel} · karyawan aktif dalam akses Anda`}
         action={
           <Link href="/finance" className={buttonPrimary}>
-            Buka keuangan karyawan
+            Buka keuangan <ArrowRight size={16} aria-hidden="true" />
           </Link>
         }
       />
@@ -39,14 +45,23 @@ export default async function FinanceOverview({
             <Link
               href={`/finance?task=${task}`}
               key={String(label)}
-              className="rounded-xl bg-slate-50 p-4 hover:bg-brand-50"
+              className="group flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 transition hover:border-brand-300 hover:bg-brand-50/30 focus-visible:outline-2 focus-visible:outline-brand-600 sm:block sm:p-4"
             >
               <p className="text-sm text-slate-500">{label}</p>
-              <p className="mt-1 text-2xl font-semibold">{Number(count)}</p>
+              <div className="flex items-center gap-3 sm:mt-3 sm:justify-between">
+                <p className="text-2xl font-semibold tabular-nums text-slate-950">
+                  {Number(count)}
+                </p>
+                <ArrowUpRight
+                  size={15}
+                  aria-hidden="true"
+                  className="text-slate-400 group-hover:text-brand-700"
+                />
+              </div>
             </Link>
           ))}
         </div>
-        <p className="mt-3 text-sm text-slate-500">
+        <p className="mt-4 border-t border-slate-100 pt-3 text-xs leading-5 text-slate-500">
           {Number(data.summary.changed)} karyawan memiliki perubahan gaji
           disetujui yang berlaku periode ini. Angka ini bukan jumlah pembayaran
           atau hasil payroll final.
