@@ -1,3 +1,14 @@
+import { formatDate } from "@/components/shared/format";
+import {
+  ArrowUpRight,
+  CalendarDays,
+  CheckCheck,
+  CircleAlert,
+  Clock3,
+  Search,
+  SlidersHorizontal,
+  Users,
+} from "lucide-react";
 import OrganizationFilters from "./organization-filters";
 import Link from "next/link";
 import { requirePermission, requireFeatureEnabled } from "@/core/rbac/guard";
@@ -20,6 +31,7 @@ import {
   EmptyState,
   inputClass,
   buttonPrimary,
+  buttonSecondary,
 } from "@/components/ui/primitives";
 export const instant = false;
 export default async function FinancePage({
@@ -38,24 +50,123 @@ export default async function FinancePage({
   ]);
   const query = Object.fromEntries(
     Object.entries(raw).filter(
-      ([k, v]) => k !== "page" && typeof v === "string",
+      ([k, v]) =>
+        [
+          "month",
+          "brand",
+          "company",
+          "location",
+          "search",
+          "status",
+          "task",
+        ].includes(k) && typeof v === "string",
     ),
   ) as Record<string, string>;
   query.month = data.period.month;
+  const periodLabel = new Intl.DateTimeFormat("id-ID", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${data.period.start}T00:00:00Z`));
+  const selectedTask = typeof raw.task === "string" ? raw.task : "";
+  const taskLabels: Record<string, string> = {
+    incomplete: "Data belum lengkap",
+    unverified: "Belum diverifikasi",
+    pending: "Menunggu keputusan gaji",
+  };
+  const taskLabel = Object.hasOwn(taskLabels, selectedTask)
+    ? taskLabels[selectedTask]
+    : undefined;
+  const stats = [
+    {
+      label: "Karyawan",
+      value: data.summary.total,
+      task: "",
+      icon: Users,
+      hint: "Dalam pilihan saat ini",
+    },
+    {
+      label: "Belum lengkap",
+      value: data.summary.incomplete,
+      task: "incomplete",
+      icon: CircleAlert,
+      hint: "Lengkapi data administrasi",
+    },
+    {
+      label: "Perlu verifikasi",
+      value: data.summary.unverified,
+      task: "unverified",
+      icon: CheckCheck,
+      hint: "Periksa kelengkapan data",
+    },
+    {
+      label: "Pengajuan gaji",
+      value: data.summary.pending,
+      task: "pending",
+      icon: Clock3,
+      hint: "Menunggu keputusan",
+    },
+  ];
   return (
-    <div className="space-y-5">
+    <div className="finance-workspace space-y-5">
       <PageHeader
         title="Keuangan karyawan"
-        description="Periksa data dan riwayat gaji sebelum menyiapkan penggajian."
+        description="Kelola kesiapan data, pemeriksaan, dan perubahan gaji karyawan."
+        action={
+          <div className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
+            <CalendarDays size={16} aria-hidden="true" />
+            {periodLabel}
+          </div>
+        }
       />
       <FlashAlerts {...readFlash(raw)} />
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        {stats.map(({ label, value, task, icon: Icon, hint }) => (
+          <Link
+            key={task}
+            href={`/finance?${new URLSearchParams({ ...query, task })}`}
+            aria-current={selectedTask === task ? "page" : undefined}
+            className={`group min-w-0 rounded-2xl border bg-white p-4 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 sm:p-5 ${selectedTask === task ? "border-brand-500 ring-1 ring-brand-500/10" : "border-slate-200 hover:border-brand-300"}`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-medium text-slate-500 sm:text-sm">
+                {label}
+              </span>
+              <Icon
+                aria-hidden="true"
+                size={17}
+                className={
+                  Number(value) > 0 && task
+                    ? "shrink-0 text-amber-600"
+                    : "shrink-0 text-slate-400"
+                }
+              />
+            </div>
+            <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
+              {Number(value).toLocaleString("id-ID")}
+            </p>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <p className="text-xs leading-5 text-slate-500">{hint}</p>
+              <ArrowUpRight
+                size={14}
+                aria-hidden="true"
+                className="shrink-0 text-slate-400 group-hover:text-brand-700"
+              />
+            </div>
+          </Link>
+        ))}
+      </div>
       <Card>
+        <CardHeader
+          title="Cari dan filter karyawan"
+          description="Sesuaikan periode dan cakupan data yang ingin diperiksa."
+        />
         <CardBody>
           <form
             method="get"
-            className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5"
+            className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
           >
-            <label className="grid gap-1 text-sm">
+            <label className="grid gap-1.5 text-sm font-medium text-slate-600">
               Periode
               <input
                 className={inputClass}
@@ -66,84 +177,96 @@ export default async function FinancePage({
                 defaultValue={data.period.month}
               />
             </label>
-            <OrganizationFilters key={JSON.stringify(query)} brands={brands} companies={companies} locations={locations} initialBrand={typeof raw.brand==='string'?raw.brand:''} initialCompany={typeof raw.company==='string'?raw.company:''} initialLocation={typeof raw.location==='string'?raw.location:''}/>
-            <label className="grid gap-1 text-sm">
+            <OrganizationFilters
+              key={JSON.stringify(query)}
+              brands={brands}
+              companies={companies}
+              locations={locations}
+              initialBrand={typeof raw.brand === "string" ? raw.brand : ""}
+              initialCompany={
+                typeof raw.company === "string" ? raw.company : ""
+              }
+              initialLocation={
+                typeof raw.location === "string" ? raw.location : ""
+              }
+            />
+            <label className="grid gap-1.5 text-sm font-medium text-slate-600">
               Nama / kode
               <input
                 className={inputClass}
+                placeholder="Nama atau kode karyawan"
+                type="search"
                 name="search"
                 maxLength={80}
                 defaultValue={typeof raw.search === "string" ? raw.search : ""}
               />
             </label>
-            <label className="grid gap-1 text-sm">Status kerja saat ini<select className={inputClass} name="status" defaultValue={typeof raw.status==='string'?raw.status:'active'}><option value="active">Aktif</option><option value="inactive">Nonaktif</option><option value="all">Semua</option></select></label>
-          <div className="flex flex-wrap items-center gap-3 sm:col-span-2 xl:col-span-5">
-              <button className={buttonPrimary}>Tampilkan periode</button>
-              <Link href="/finance" className="text-sm underline">
+            <label className="grid gap-1.5 text-sm font-medium text-slate-600">
+              Status kerja saat ini
+              <select
+                className={inputClass}
+                name="status"
+                defaultValue={
+                  typeof raw.status === "string" ? raw.status : "active"
+                }
+              >
+                <option value="active">Aktif</option>
+                <option value="inactive">Nonaktif</option>
+                <option value="all">Semua</option>
+              </select>
+            </label>
+            <div className="flex flex-wrap items-center gap-3 sm:col-span-2 xl:col-span-3">
+              <button className={buttonPrimary}>
+                <Search size={16} aria-hidden="true" />
+                Terapkan filter
+              </button>
+              <Link href="/finance" className={buttonSecondary}>
                 Reset
               </Link>
             </div>
           </form>
-          <p className="mt-3 text-xs text-slate-500">
-            Gaji ditampilkan pada akhir periode. CV, brand, outlet, kelengkapan,
-            dan filter mengikuti profil saat ini. Ini daftar persiapan, bukan
-            hasil payroll atau bukti pembayaran.
+          <p className="mt-4 border-t border-slate-100 pt-3 text-xs leading-5 text-slate-500">
+            Gaji mengikuti akhir periode. Penempatan dan kelengkapan mengikuti
+            profil saat ini.
           </p>
         </CardBody>
       </Card>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          ["Karyawan dalam filter", data.summary.total, ""],
-          ["Data belum lengkap", data.summary.incomplete, "incomplete"],
-          ["Belum diverifikasi", data.summary.unverified, "unverified"],
-          ["Menunggu keputusan gaji", data.summary.pending, "pending"],
-        ].map(([label, value, task]) => (
-          <Card key={String(label)}>
-            <CardBody>
-              <Link
-                className="block rounded-lg focus-visible:outline-2"
-                href={`/finance?${new URLSearchParams({ ...query, task: String(task) })}`}
-              >
-                <p className="text-sm text-slate-500">{label}</p>
-                <p className="mt-2 text-3xl font-semibold">{Number(value)}</p>
-                <p className="mt-1 text-xs text-brand-700">Lihat daftar →</p>
-              </Link>
-            </CardBody>
-          </Card>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-100 bg-brand-50/60 px-4 py-3 text-sm">
+        <p className="text-brand-900">
+          <span className="font-semibold">
+            {Number(data.summary.changed)} karyawan
+          </span>{" "}
+          memiliki perubahan gaji disetujui yang berlaku pada {periodLabel}.
+        </p>
+        <span className="text-xs text-brand-700">Persiapan penggajian</span>
       </div>
       <Card>
         <CardHeader
-          title="Perlu ditindaklanjuti"
-          description={`${Number(data.summary.changed)} karyawan memiliki gaji disetujui yang mulai berlaku pada periode ini.`}
-        />
-        <CardBody>
-          <ul className="list-disc space-y-2 pl-5 text-sm text-slate-600">
-            <li>
-              Lengkapi CV, tanggal masuk, NIK, bank, dan rekening sebelum
-              verifikasi.
-            </li>
-            <li>
-              Pengajuan gaji harus diputuskan pengguna lain yang memiliki izin
-              persetujuan.
-            </li>
-            <li>
-              Perubahan berlaku surut perlu diperiksa untuk rapel; aplikasi
-              belum menghitung atau membayarkan selisih otomatis.
-            </li>
-          </ul>
-        </CardBody>
-      </Card>
-      <Card>
-        <CardHeader
           title="Daftar karyawan dan gaji"
-          description={`${data.total} karyawan · 25 data per halaman · ${data.period.month}`}
+          description={`${data.total} karyawan · ${periodLabel}`}
         />
         <CardBody>
+          {taskLabel ? (
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm">
+              <span className="flex items-center gap-2 font-medium text-slate-700">
+                <SlidersHorizontal size={14} aria-hidden="true" />
+                {taskLabel}
+              </span>
+              <Link
+                className="min-h-11 content-center font-semibold text-brand-700 hover:underline"
+                href={`/finance?${new URLSearchParams({ ...query, task: "" })}`}
+              >
+                Hapus pilihan
+              </Link>
+            </div>
+          ) : null}
           {data.rows.length ? (
             <div className="responsive-table-wrap overflow-x-auto">
-              <table className="responsive-data-table w-full table-fixed min-w-[900px] text-left text-sm">
-                <thead>
+              <table className="responsive-data-table w-full table-fixed min-w-[980px] text-left text-sm">
+                <caption className="sr-only">
+                  Data karyawan, penempatan dan gaji pada periode terpilih
+                </caption>
+                <thead className="border-y border-slate-200 bg-slate-50 text-xs text-slate-500">
                   <tr>
                     {[
                       "Karyawan",
@@ -154,7 +277,11 @@ export default async function FinancePage({
                       "Perubahan",
                       "Pemeriksaan",
                     ].map((s) => (
-                      <th key={s} className="p-3">
+                      <th
+                        key={s}
+                        scope="col"
+                        className="px-3 py-3 font-semibold"
+                      >
                         {s}
                       </th>
                     ))}
@@ -162,13 +289,16 @@ export default async function FinancePage({
                 </thead>
                 <tbody>
                   {data.rows.map((e) => (
-                    <tr key={e.id} className="border-t border-slate-100">
-                      <td className="p-3">
+                    <tr
+                      key={e.id}
+                      className="border-t border-slate-100 align-top transition hover:bg-slate-50/70"
+                    >
+                      <td className="px-3 py-4">
                         <span className="mobile-cell-label" aria-hidden="true">
                           Karyawan
                         </span>
                         <Link
-                          className="break-words font-semibold text-brand-700 underline"
+                          className="break-words font-semibold text-slate-900 decoration-brand-300 underline-offset-4 hover:text-brand-700 hover:underline"
                           href={`/finance/employees/${e.id}`}
                         >
                           {e.full_name}
@@ -178,14 +308,14 @@ export default async function FinancePage({
                           {e.is_active ? "Aktif" : "Nonaktif"}
                         </p>
                       </td>
-                      <td className="p-3">
+                      <td className="px-3 py-4">
                         <span className="mobile-cell-label" aria-hidden="true">
                           CV / Brand
                         </span>
                         {e.company_name ?? "CV belum ditentukan"}
                         <p className="text-xs text-slate-500">{e.brand_name}</p>
                       </td>
-                      <td className="p-3">
+                      <td className="px-3 py-4">
                         <span className="mobile-cell-label" aria-hidden="true">
                           Outlet / Jabatan
                         </span>
@@ -194,19 +324,21 @@ export default async function FinancePage({
                           {e.position_name}
                         </p>
                       </td>
-                      <td className="p-3">
+                      <td className="px-3 py-4">
                         <span className="mobile-cell-label" aria-hidden="true">
                           Jenis karyawan
                         </span>
                         {e.employment_type ?? "Belum ditentukan"}
                       </td>
-                      <td className="p-3">
+                      <td className="px-3 py-4">
                         <span className="mobile-cell-label" aria-hidden="true">
                           Gaji akhir periode
                         </span>
-                        {money(e.amount)}
+                        <span className="font-semibold tabular-nums text-slate-900">
+                          {money(e.amount)}
+                        </span>
                       </td>
-                      <td className="space-y-1 p-3">
+                      <td className="space-y-1.5 px-3 py-4">
                         <span className="mobile-cell-label" aria-hidden="true">
                           Perubahan
                         </span>
@@ -218,14 +350,14 @@ export default async function FinancePage({
                         )}
                         {e.future_date && (
                           <p className="text-xs">
-                            Terjadwal {e.future_date}: {money(e.future_amount)}
+                            Terjadwal {formatDate(e.future_date)}: {money(e.future_amount)}
                           </p>
                         )}
                         {!e.pending && !e.changed && !e.future_date
                           ? "—"
                           : null}
                       </td>
-                      <td className="p-3">
+                      <td className="px-3 py-4">
                         <span className="mobile-cell-label" aria-hidden="true">
                           Pemeriksaan
                         </span>
@@ -256,6 +388,24 @@ export default async function FinancePage({
               description="Ubah pencarian atau pilihan organisasi."
             />
           )}
+          <details className="mt-5 border-t border-slate-100 pt-4 text-sm text-slate-500">
+            <summary className="min-h-11 cursor-pointer content-center font-medium text-slate-700">
+              Panduan pemeriksaan data dan gaji
+            </summary>
+            <ul className="mt-2 list-disc space-y-2 pl-5 text-xs leading-5">
+              <li>
+                Lengkapi CV, tanggal masuk, NIK, bank, dan rekening sebelum
+                verifikasi.
+              </li>
+              <li>
+                Pengajuan gaji diputuskan oleh pengguna lain yang berwenang.
+              </li>
+              <li>
+                Gaji pokok di akhir periode belum mencakup prorata, rapel,
+                potongan, pajak, atau pembayaran.
+              </li>
+            </ul>
+          </details>
           <Pagination
             basePath="/finance"
             page={data.page}
