@@ -21,10 +21,18 @@ test(
     });
     const code = "FIN-" + randomUUID().slice(0, 12);
     let id = 0;
+    const created: {table:string;id:number}[]=[];
+    async function insert(table:string,columns:string,values: (string|number)[]) {
+      const [r]=await conn.execute<import('mysql2/promise').ResultSetHeader>(`INSERT INTO ${table} (${columns}) VALUES (${values.map(()=>'?').join(',')})`,values);
+      created.unshift({table,id:r.insertId});return r.insertId;
+    }
     try {
-      const [org] = await conn.query<RowDataPacket[]>(
-        "SELECT c.id company_id,c.brand_id,p.id position_id,l.id location_id FROM companies c CROSS JOIN positions p JOIN locations l ON l.brand_id IS NULL OR l.brand_id=c.brand_id LIMIT 1",
-      );
+      const brandId=await insert('brands','code,name',[code,code]);
+      const companyId=await insert('companies','brand_id,name',[brandId,code]);
+      const divisionId=await insert('divisions','name',[code]);
+      const positionId=await insert('positions','division_id,name',[divisionId,code]);
+      const locationId=await insert('locations','brand_id,name',[brandId,code]);
+      const org=[{company_id:companyId,brand_id:brandId,position_id:positionId,location_id:locationId}];
       const [users] = await conn.query<RowDataPacket[]>(
         "SELECT id FROM users LIMIT 1",
       );
@@ -108,6 +116,7 @@ test(
         ]);
         await conn.execute("DELETE FROM employees WHERE id=?", [id]);
       }
+      for(const row of created) await conn.execute(`DELETE FROM ${row.table} WHERE id=?`,[row.id]);
       await conn.end();
       await getPool().end();
     }
