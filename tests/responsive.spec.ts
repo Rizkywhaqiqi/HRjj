@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const screens = ["contracts", "reports", "letters", "audit"];
+const screens = ["dashboard", "contracts", "reports", "letters", "audit"];
 const sizes = [
   [320, 740],
   [390, 844],
@@ -101,4 +101,22 @@ test("contract submit is disabled while a server action is pending", async ({
   await expect(submit).toBeDisabled();
   await expect(submit).toHaveAttribute("aria-busy", "true");
   await expect(submit).toBeEnabled();
+});
+
+test("finance CV options follow the selected brand", async ({ page }) => {
+  await page.goto("/responsive-check/dashboard");
+  const section = page.getByRole("region", {
+    name: "Data karyawan untuk keuangan",
+  });
+  await expect(section).toBeVisible();
+  await section.locator('[name="financeBrand"]').selectOption("1");
+  await expect(
+    section.locator('[name="financeCompany"] option[value="1"]'),
+  ).toHaveCount(1);
+  await expect(
+    section.locator('[name="financeCompany"] option[value="2"]'),
+  ).toHaveCount(0);
+  await expect(
+    section.getByRole("columnheader", { name: "CV / perusahaan", exact: true }),
+  ).toHaveCount(1);
 });
