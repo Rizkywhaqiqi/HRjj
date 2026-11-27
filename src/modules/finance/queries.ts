@@ -43,7 +43,7 @@ export async function financeDirectory(
     ["company", "e.company_id"],
     ["location", "e.location_id"],
   ]) {
-    const n = Number(raw[key]);
+    const n = typeof raw[key] === "string" ? Number(raw[key]) : NaN;
     if (Number.isSafeInteger(n) && n > 0) {
       clauses.push(`${col}=?`);
       params.push(n);
@@ -56,7 +56,7 @@ export async function financeDirectory(
     pending:
       "EXISTS(SELECT 1 FROM salary_changes sc WHERE sc.employee_id=e.id AND sc.status='PENDING')",
   };
-  if (typeof raw.task === "string" && tasks[raw.task])
+  if (typeof raw.task === "string" && Object.hasOwn(tasks, raw.task))
     clauses.push(tasks[raw.task]);
   const search =
     typeof raw.search === "string" ? raw.search.trim().slice(0, 80) : "";
