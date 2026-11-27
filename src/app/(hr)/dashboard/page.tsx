@@ -1,3 +1,11 @@
+import {
+  canViewFinanceDirectory,
+  financeFilters,
+} from "@/modules/dashboard/finance";
+import { listFinanceEmployees } from "@/modules/dashboard/queries";
+import { listBrandOptions, listCompanyOptions } from "@/modules/master-data";
+import { parsePage } from "@/components/shared/pagination";
+import FinanceDirectory from "./finance-directory";
 import Link from "next/link";
 import type { RowDataPacket } from "mysql2/promise";
 import { queryRows } from "@/core/db";
@@ -38,8 +46,19 @@ interface Reminder extends RowDataPacket {
   end_date: string;
   days_remaining: number;
 }
-export default async function Dashboard() {
+export default async function Dashboard({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const actor = await requirePermission(PERMISSIONS.dashboardView);
+  const params = await searchParams;
+  const filters = financeFilters(params);
+  const canFinance =
+    canViewFinanceDirectory(actor) &&
+    (await isFeatureEnabled("employees")) &&
+    (hasPermission(actor, PERMISSIONS.employeeView) ||
+      (await isFeatureEnabled("reports")));
   const s = directBrandScope(actor, "e.brand_id");
   const canContracts =
     hasPermission(actor, PERMISSIONS.contractView) &&
@@ -50,7 +69,14 @@ export default async function Dashboard() {
     hasPermission(actor, PERMISSIONS.letterCreate) &&
     hasPermission(actor, PERMISSIONS.letterView) &&
     (await isFeatureEnabled("letters"));
-  const [summaries, breakdown, reminders] = await Promise.all([
+  const financePromise = canFinance
+    ? Promise.all([
+        listFinanceEmployees(actor, filters, parsePage(params.page)),
+        listBrandOptions(actor),
+        listCompanyOptions(actor),
+      ])
+    : Promise.resolve(null);
+  const [summaries, breakdown, reminders, finance] = await Promise.all([
     queryRows<Summary>(
       `SELECT COUNT(*) total,COALESCE(SUM(e.is_active=1),0) active,COALESCE(SUM(e.is_active=0),0) inactive FROM employees e WHERE ${s.clause}`,
       s.params,
@@ -65,6 +91,7 @@ export default async function Dashboard() {
           s.params,
         )
       : Promise.resolve([]),
+    financePromise,
   ]);
   const summary = summaries[0];
   return (
@@ -96,6 +123,15 @@ export default async function Dashboard() {
           </Card>
         ))}
       </div>
+      {finance ? (
+        <FinanceDirectory
+          result={finance[0]}
+          brands={finance[1]}
+          companies={finance[2]}
+          filters={filters}
+          canOpenEmployee={hasPermission(actor, PERMISSIONS.employeeView)}
+        />
+      ) : null}
       {canContracts ? (
         <Card>
           <CardHeader

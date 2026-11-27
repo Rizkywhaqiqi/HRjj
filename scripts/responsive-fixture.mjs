@@ -50,6 +50,8 @@ const calls = {
   requireFeatureEnabled: "Promise.resolve()",
   isFeatureEnabled: "Promise.resolve(true)",
   countContracts: "Promise.resolve(60)",
+  listFinanceEmployees:
+    "Promise.resolve({rows:fixtureEmployees,total:60,page:3})",
   listContracts: "Promise.resolve(fixtureContracts)",
   listContractTypes: "Promise.resolve(fixtureTypes)",
   listExitReasons: "Promise.resolve([{id:1,name:'Habis kontrak'}])",
@@ -58,7 +60,8 @@ const calls = {
   employeeReportSummary: "Promise.resolve({total:150,active:140,inactive:10})",
   listEmployeeReport: "Promise.resolve(fixtureEmployees)",
   listBrandOptions: "Promise.resolve([{id:1,name:'JOJO'}])",
-  listCompanyOptions: "Promise.resolve([{id:1,name:'CV Dummy'}])",
+  listCompanyOptions:
+    "Promise.resolve([{id:1,name:'CV Dummy',parentId:1},{id:2,name:'CV Brand Lain',parentId:2}])",
   listDivisionOptions: "Promise.resolve([{id:1,name:'Operasional'}])",
   listLocations: "Promise.resolve([{id:1,name:'Lokasi dummy'}])",
   listAuditEntityTypes: "Promise.resolve(['employee'])",
@@ -69,6 +72,7 @@ const calls = {
   getLetterContractDefaults: "Promise.resolve(null)",
 };
 for (const screen of [
+  "dashboard",
   "contracts",
   "reports",
   "letters",
@@ -101,6 +105,20 @@ for (const screen of [
       ]);
       return;
     }
+    if (
+      ts.isCallExpression(n) &&
+      n.expression.getText(source) === "queryRows"
+    ) {
+      const type = n.typeArguments?.[0]?.getText(source);
+      edits.push([
+        n.getStart(source),
+        n.end,
+        type === "Summary"
+          ? "Promise.resolve([{total:60,active:58,inactive:2}])"
+          : "Promise.resolve([])",
+      ]);
+      return;
+    }
     if (ts.isCallExpression(n) && calls[n.expression.getText(source)]) {
       edits.push([
         n.getStart(source),
@@ -123,6 +141,10 @@ for (const screen of [
       'from "./letter-composer"',
       'from "@/app/(hr)/letters/letter-composer"',
     );
+  s = s.replace(
+    'from "./finance-directory"',
+    'from "@/app/(hr)/dashboard/finance-directory"',
+  );
   s =
     'import {pendingAction} from "./actions";\nimport {user as fixtureUser,employees as fixtureEmployees,contracts as fixtureContracts,types as fixtureTypes} from "./data";\n' +
     s;
@@ -130,7 +152,7 @@ for (const screen of [
 }
 fs.writeFileSync(
   dir + "/[screen]/page.tsx",
-  `import { connection } from 'next/server'; import { AppShell } from '@/components/layout/app-shell'; import {user} from '../data'; import Contracts from '../contracts';import Reports from '../reports';import Letters from '../letters';import Audit from '../settings-audit-logs';import {NAV_SECTIONS} from '@/core/module-registry';
+  `import { connection } from 'next/server'; import { AppShell } from '@/components/layout/app-shell'; import {user} from '../data'; import Dashboard from '../dashboard';import Contracts from '../contracts';import Reports from '../reports';import Letters from '../letters';import Audit from '../settings-audit-logs';import {NAV_SECTIONS} from '@/core/module-registry';
 export const instant=false;
-export default async function Page({params}:{params:Promise<{screen:string}>}){await connection();const {screen}=await params;const Page=({contracts:Contracts,reports:Reports,letters:Letters,audit:Audit} as const)[screen as 'contracts']??Contracts;return <AppShell user={user} sections={NAV_SECTIONS.map(s=>({...s,items:s.items.map(i=>({...i,href:'/responsive-check/'+(i.href.includes('report')?'reports':i.href.includes('letter')?'letters':i.href.includes('audit')?'audit':'contracts')+'?nav='+encodeURIComponent(i.label)}))}))}><Page searchParams={Promise.resolve({page:'3'})}/></AppShell>}`,
+export default async function Page({params}:{params:Promise<{screen:string}>}){await connection();const {screen}=await params;const Page=({dashboard:Dashboard,contracts:Contracts,reports:Reports,letters:Letters,audit:Audit} as const)[screen as 'contracts']??Contracts;return <AppShell user={user} sections={NAV_SECTIONS.map(s=>({...s,items:s.items.map(i=>({...i,href:'/responsive-check/'+(i.href.includes('report')?'reports':i.href.includes('letter')?'letters':i.href.includes('audit')?'audit':'contracts')+'?nav='+encodeURIComponent(i.label)}))}))}><Page searchParams={Promise.resolve({page:'3'})}/></AppShell>}`,
 );
