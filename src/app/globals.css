@@ -13,7 +13,8 @@
   --color-brand-900: #0d372e;
   --color-surface: #f7f8fa;
   --color-ink: #182230;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial,
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial,
     sans-serif;
   --animate-brand-card-float: brand-card-float 6s ease-in-out infinite;
 
@@ -94,7 +95,6 @@ body {
   }
 }
 
-
 /* The dialog is in the browser top layer, outside header stacking contexts. */
 .mobile-navigation::backdrop {
   background: rgb(15 23 42 / 55%);
@@ -104,9 +104,125 @@ body {
   animation: navigation-enter 180ms ease-out;
 }
 @keyframes navigation-enter {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .mobile-navigation[open] { animation: none; }
+  .mobile-navigation[open] {
+    animation: none;
+  }
+}
+
+/* Keep intrinsic form/content widths inside the available pane beside the sidebar. */
+main :where(form, fieldset, label, input, select, textarea) {
+  min-inline-size: 0;
+}
+main :where(h1, h2, h3, p, dd, summary) {
+  overflow-wrap: anywhere;
+}
+main :where(input[type="file"]) {
+  max-inline-size: 100%;
+}
+.responsive-table-wrap {
+  container-type: inline-size;
+  min-width: 0;
+  max-width: 100%;
+}
+.mobile-cell-label {
+  display: none;
+}
+
+/* Adapt to the content pane, including tablet-sized panes beside a desktop sidebar. */
+@container (max-width: 47.99rem) {
+  .responsive-data-table {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+  .responsive-data-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .responsive-data-table tbody {
+    display: grid;
+    gap: 1rem;
+    padding: 0.25rem;
+  }
+  .responsive-data-table tbody > tr {
+    display: grid;
+    min-width: 0;
+    gap: 0.75rem;
+    padding: 1rem;
+    border: 1px solid var(--color-slate-200);
+    border-radius: 1rem;
+    background: white;
+  }
+  .responsive-data-table tbody > tr > td {
+    display: block;
+    min-width: 0;
+    max-width: none;
+    padding: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .responsive-data-table .mobile-cell-label {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: var(--color-slate-500);
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .responsive-data-table td :where(a, button, input, select, textarea) {
+    max-width: 100%;
+  }
+}
+@container (min-width: 30rem) and (max-width: 47.99rem) {
+  .responsive-data-table tbody > tr {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .responsive-data-table tbody > tr > td:first-child,
+  .responsive-data-table tbody > tr > td:last-child {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 639px) {
+  /* 16px prevents Safari from zooming the whole page when a form field is focused. */
+  :where(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+    select,
+    textarea
+  ) {
+    font-size: 1rem;
+  }
+  main :where(button[type="submit"], form > button, form > a) {
+    min-height: 2.75rem;
+  }
+}
+@media (max-height: 500px) {
+  .mobile-navigation > div:first-child {
+    padding-block: 0.5rem;
+  }
+  .mobile-navigation > div:last-child {
+    padding-block: 0.5rem;
+  }
+  .mobile-navigation nav {
+    padding-block: 0.5rem;
+  }
+}
+@media print {
+  .mobile-cell-label {
+    display: none !important;
+  }
 }

@@ -1,0 +1,77 @@
+import { expect, test } from "@playwright/test";
+
+const screens = ["contracts", "reports", "letters", "audit"];
+const sizes = [
+  [320, 740],
+  [390, 844],
+  [768, 1024],
+  [1024, 768],
+  [1440, 900],
+  [667, 375],
+];
+for (const screen of screens) {
+  test(`${screen}: narrow and wide panes contain content and preserve table labels`, async ({
+    page,
+  }) => {
+    for (const [width, height] of sizes) {
+      await page.setViewportSize({ width, height });
+      await page.goto(`/responsive-check/${screen}`);
+      await expect(page.locator("main table")).toBeVisible();
+      if (width === 390)
+        await page.screenshot({
+          path: `test-results/${screen}-mobile.png`,
+          fullPage: true,
+        });
+      const dimensions = await page.evaluate(() => ({
+        viewport: window.innerWidth,
+        document: document.documentElement.scrollWidth,
+        pane: document
+          .querySelector(".responsive-table-wrap")!
+          .getBoundingClientRect().width,
+        table: getComputedStyle(document.querySelector("main table")!).display,
+      }));
+      expect(
+        dimensions.document,
+        `${screen} overflow at ${width}x${height}`,
+      ).toBeLessThanOrEqual(width + 1);
+      if (dimensions.pane < 767) {
+        expect(dimensions.table).toBe("block");
+        await expect(page.locator(".mobile-cell-label").first()).toBeVisible();
+      } else {
+        expect(dimensions.table).toBe("table");
+        await expect(page.locator(".mobile-cell-label").first()).toBeHidden();
+      }
+    }
+  });
+}
+test("mobile navigation closes on Escape, route selection and desktop resize", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/responsive-check/contracts");
+  const trigger = page.getByRole("button", { name: "Buka menu navigasi" });
+  const dialog = page.getByRole("dialog");
+  await trigger.click();
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(trigger).toBeFocused();
+  await trigger.click();
+  await dialog.getByRole("link", { name: "Karyawan", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await trigger.click();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(dialog).toBeHidden();
+  await page.setViewportSize({ width: 667, height: 375 });
+  await trigger.click();
+  await expect(
+    dialog.getByRole("button", { name: "Tutup menu" }),
+  ).toBeInViewport();
+  await expect(
+    dialog.getByRole("button", { name: "Keluar", exact: true }),
+  ).toBeInViewport();
+  await page.keyboard.press("Escape");
+  expect(await page.evaluate(() => document.body.style.overflow)).not.toBe(
+    "hidden",
+  );
+});

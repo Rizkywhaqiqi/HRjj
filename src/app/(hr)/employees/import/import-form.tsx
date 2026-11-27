@@ -98,27 +98,59 @@ export default function ImportForm() {
                   {result.total} baris · {result.valid} valid · {result.invalid}{" "}
                   perlu diperbaiki
                 </p>
-                <div className="mt-3 max-h-80 overflow-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr>
-                        <th className="p-2">Baris</th>
-                        <th>Nama</th>
-                        <th>Hasil</th>
+                <div className="responsive-table-wrap mt-3 max-h-80 overflow-auto">
+                  <table
+                    role="table"
+                    className="responsive-data-table w-full text-left text-xs"
+                  >
+                    <thead role="rowgroup">
+                      <tr role="row">
+                        <th scope="col" className="p-2">
+                          Baris
+                        </th>
+                        <th scope="col">Nama</th>
+                        <th scope="col">Hasil</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody role="rowgroup">
                       {result.rows?.map((r) => (
-                        <tr key={r.row} className="border-t border-slate-200">
-                          <td className="p-2">{r.row}</td>
-                          <td>{r.fullName ?? "—"}</td>
+                        <tr
+                          role="row"
+                          key={r.row}
+                          className="border-t border-slate-200"
+                        >
+                          <td role="cell" className="p-2">
+                            <span
+                              className="mobile-cell-label"
+                              aria-hidden="true"
+                            >
+                              Baris
+                            </span>
+                            {r.row}
+                          </td>
+                          <td role="cell">
+                            <span
+                              className="mobile-cell-label"
+                              aria-hidden="true"
+                            >
+                              Nama
+                            </span>
+                            {r.fullName ?? "—"}
+                          </td>
                           <td
+                            role="cell"
                             className={
                               r.errors.length
                                 ? "text-rose-700"
                                 : "text-emerald-700"
                             }
                           >
+                            <span
+                              className="mobile-cell-label"
+                              aria-hidden="true"
+                            >
+                              Hasil
+                            </span>
                             {r.errors.join("; ") || "Siap disimpan"}
                           </td>
                         </tr>

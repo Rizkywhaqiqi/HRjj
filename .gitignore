@@ -44,3 +44,8 @@ next-env.d.ts
 # Runtime documents must never enter version control
 /storage/private/
 /storage/templates/
+
+# Disposable responsive browser fixtures and test output
+/src/app/responsive-check/
+/test-results/
+/playwright-report/

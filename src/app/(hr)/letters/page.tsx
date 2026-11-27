@@ -137,10 +137,16 @@ export default async function LettersPage({
         />
         <CardBody>
           {letters.length ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="border-b text-xs uppercase text-slate-500">
-                  <tr>
+            <div className="responsive-table-wrap overflow-x-auto">
+              <table
+                role="table"
+                className="responsive-data-table w-full text-left text-sm"
+              >
+                <thead
+                  role="rowgroup"
+                  className="border-b text-xs uppercase text-slate-500"
+                >
+                  <tr role="row">
                     {[
                       "Nomor surat",
                       "Karyawan",
@@ -148,26 +154,43 @@ export default async function LettersPage({
                       "Tanggal",
                       "Dokumen",
                     ].map((h) => (
-                      <th key={h} className="px-3 py-3">
+                      <th scope="col" key={h} className="px-3 py-3">
                         {h}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody role="rowgroup" className="divide-y divide-slate-100">
                   {letters.map((l) => (
-                    <tr key={l.id}>
-                      <td className="px-3 py-4 font-medium">
+                    <tr role="row" key={l.id}>
+                      <td role="cell" className="px-3 py-4 font-medium">
+                        <span className="mobile-cell-label" aria-hidden="true">
+                          Nomor surat
+                        </span>
                         {l.letter_number}
                       </td>
-                      <td className="px-3 py-4">
+                      <td role="cell" className="px-3 py-4">
+                        <span className="mobile-cell-label" aria-hidden="true">
+                          Karyawan
+                        </span>
                         {parseSnapshot(l.metadata)?.employeeName ?? l.full_name}
                       </td>
-                      <td className="px-3 py-4">
+                      <td role="cell" className="px-3 py-4">
+                        <span className="mobile-cell-label" aria-hidden="true">
+                          Jenis
+                        </span>
                         {LETTER_LABELS[l.type as LetterType] ?? l.type}
                       </td>
-                      <td className="px-3 py-4">{formatDate(l.issued_date)}</td>
-                      <td className="px-3 py-4">
+                      <td role="cell" className="px-3 py-4">
+                        <span className="mobile-cell-label" aria-hidden="true">
+                          Tanggal
+                        </span>
+                        {formatDate(l.issued_date)}
+                      </td>
+                      <td role="cell" className="px-3 py-4">
+                        <span className="mobile-cell-label" aria-hidden="true">
+                          Dokumen
+                        </span>
                         <Link
                           href={`/letters/${l.id}/preview`}
                           className={buttonSecondary}

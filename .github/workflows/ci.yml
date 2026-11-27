@@ -71,3 +71,9 @@ jobs:
 
       - name: Contract transaction regression test
         run: HR_RUN_DB_INTEGRATION=1 node --import tsx --test tests/contracts.integration.ts
+
+      - name: Install browser for responsive checks
+        run: npx playwright install --with-deps chromium
+
+      - name: Responsive browser checks with dummy data
+        run: npm run test:responsive
