@@ -1,4 +1,8 @@
 export const AUDIT_ACTIONS = {
+  salaryRequest: "salary.request",
+  salaryDecision: "salary.decision",
+  employeeVerify: "employee.verify",
+  employeePlacement: "employee.placement",
   loginSuccess: "auth.login.success",
   loginFailed: "auth.login.failed",
   logout: "auth.logout",

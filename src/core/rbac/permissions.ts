@@ -3,6 +3,10 @@
  * are always read from the database, these constants only prevent typos.
  */
 export const PERMISSIONS = {
+  financeView: "finance.view",
+  financeManage: "finance.manage",
+  financeApprove: "finance.approve",
+  employeeVerify: "employee.verify",
   dashboardView: "dashboard.view",
   employeeView: "employee.view",
   employeeCreate: "employee.create",

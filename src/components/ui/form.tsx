@@ -12,12 +12,16 @@ const VARIANTS = {
 
 export function SubmitButton({
   children,
+  name,
+  value,
   pendingLabel = "Menyimpan...",
   variant = "primary",
   className,
   unstyled = false,
 }: {
   children: ReactNode;
+  name?: string;
+  value?: string;
   pendingLabel?: string;
   variant?: keyof typeof VARIANTS;
   className?: string;
@@ -28,6 +32,8 @@ export function SubmitButton({
   return (
     <button
       type="submit"
+      name={name}
+      value={value}
       disabled={pending}
       aria-busy={pending}
       className={cn(!unstyled && VARIANTS[variant], className)}

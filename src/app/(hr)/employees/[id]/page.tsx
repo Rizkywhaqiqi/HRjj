@@ -1,3 +1,4 @@
+import PlacementHistory from "../placement-history";
 import { SubmitButton } from "@/components/ui/form";
 import type { ReactNode } from "react";
 import Link from "next/link";
@@ -248,7 +249,13 @@ export default async function EmployeeDetailPage({
                   />
                 </label>
               ) : null}
+              <input type="hidden" name="companyId" value={employee.company_id ?? ""} />
+              <input type="hidden" name="positionId" value={employee.position_id} />
+              <input type="hidden" name="locationId" value={employee.location_id} />
+              <p className="text-sm text-slate-500 sm:col-span-2">Penempatan diubah melalui Mutasi penempatan pada halaman detail, agar riwayat tetap tercatat.</p>
               <select
+                disabled
+                aria-label="CV saat ini"
                 name="companyId"
                 defaultValue={employee.company_id ?? ""}
                 className={inputClass}
@@ -261,6 +268,8 @@ export default async function EmployeeDetailPage({
                 ))}
               </select>
               <select
+                disabled
+                aria-label="Jabatan saat ini"
                 name="positionId"
                 required
                 defaultValue={employee.position_id}
@@ -274,6 +283,8 @@ export default async function EmployeeDetailPage({
                 ))}
               </select>
               <select
+                disabled
+                aria-label="Outlet saat ini"
                 name="locationId"
                 required
                 defaultValue={employee.location_id}
@@ -512,6 +523,7 @@ export default async function EmployeeDetailPage({
           </CardBody>
         </Card>
       )}
+      <PlacementHistory actor={actor} id={id} active={Boolean(summary.is_active)} />
     </div>
   );
 }

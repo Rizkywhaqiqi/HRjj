@@ -1,6 +1,7 @@
 import type { RowDataPacket } from "mysql2/promise";
 import { queryRows } from "@/core/db";
 import { directBrandScope } from "@/core/rbac/scope";
+import { PERMISSIONS } from "@/core/rbac/permissions";
 import type { SessionUser } from "@/types/database";
 export interface LetterRow extends RowDataPacket {
   id: number;
@@ -20,7 +21,7 @@ export async function listLetters(
 ): Promise<LetterRow[]> {
   const s = directBrandScope(user, "e.brand_id");
   return queryRows<LetterRow>(
-    `SELECT l.*,e.full_name,c.name company_name FROM letters l INNER JOIN employees e ON e.id=l.employee_id LEFT JOIN companies c ON c.id=l.company_id WHERE ${s.clause}${employeeId ? " AND l.employee_id=?" : ""} ORDER BY l.id DESC LIMIT 200`,
+    `SELECT l.*,e.full_name,c.name company_name FROM letters l INNER JOIN employees e ON e.id=l.employee_id LEFT JOIN companies c ON c.id=l.company_id WHERE ${s.clause}${user.permissions.includes(PERMISSIONS.employeeViewSensitive) || user.permissions.includes(PERMISSIONS.financeView) ? "" : " AND l.type<>'CONTRACT'"}${employeeId ? " AND l.employee_id=?" : ""} ORDER BY l.id DESC LIMIT 200`,
     employeeId ? [...s.params, employeeId] : s.params,
   );
 }
@@ -32,7 +33,7 @@ export async function getLetter(
   return (
     (
       await queryRows<LetterRow>(
-        `SELECT l.*,e.full_name,c.name company_name FROM letters l INNER JOIN employees e ON e.id=l.employee_id LEFT JOIN companies c ON c.id=l.company_id WHERE l.id=? AND ${s.clause} LIMIT 1`,
+        `SELECT l.*,e.full_name,c.name company_name FROM letters l INNER JOIN employees e ON e.id=l.employee_id LEFT JOIN companies c ON c.id=l.company_id WHERE l.id=? AND ${s.clause}${user.permissions.includes(PERMISSIONS.employeeViewSensitive) || user.permissions.includes(PERMISSIONS.financeView) ? "" : " AND l.type<>'CONTRACT'"} LIMIT 1`,
         [id, ...s.params],
       )
     )[0] ?? null
@@ -63,6 +64,7 @@ export async function getLetterContractDefaults(
   contractId: number,
   renewal = false,
 ) {
+  if (!user.permissions.includes(PERMISSIONS.employeeViewSensitive) && !user.permissions.includes(PERMISSIONS.financeView)) return null;
   const s = directBrandScope(user, "e.brand_id");
   return (
     (

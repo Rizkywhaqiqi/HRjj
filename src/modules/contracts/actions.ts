@@ -284,6 +284,7 @@ export async function decideContractAction(formData: FormData): Promise<void> {
           "UPDATE employees SET is_active = FALSE, exit_date = ?, exit_reason_id = ? WHERE id = ?",
           [exitDate, data.exitReasonId, contract.employee_id],
         );
+        await connection.execute("DELETE FROM employee_verifications WHERE employee_id=?", [contract.employee_id]);
       }
       return null;
     });

@@ -1,3 +1,4 @@
+import { recordPlacement } from "@/modules/finance/placement";
 import type {
   Connection,
   ResultSetHeader,
@@ -127,5 +128,6 @@ export async function insertEmployeeRecord(
     ],
   );
 
+  await recordPlacement(connection, result.insertId, null, "Penempatan awal saat karyawan dicatat");
   return { employeeId: result.insertId, employeeCode };
 }
