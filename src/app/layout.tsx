@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  robots: { index: false, follow: false },
   title: "JOJO HR Space | Dokumentasi karyawan",
   description:
     "Aplikasi internal untuk data karyawan, kontrak, surat, dan laporan HR.",

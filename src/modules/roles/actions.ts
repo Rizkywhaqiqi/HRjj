@@ -1,7 +1,7 @@
 "use server";
 
-import type { ResultSetHeader } from "mysql2/promise";
-import { executeSql, withTransaction } from "@/core/db";
+import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
+import { executeSql, queryRows, withTransaction } from "@/core/db";
 import { AUDIT_ACTIONS, logAudit } from "@/core/audit/log";
 import { firstIssueMessage, redirectWithMessage } from "@/core/http/navigation";
 import { requirePermission } from "@/core/rbac/guard";
@@ -18,6 +18,42 @@ import {
   getRoleById,
 } from "./queries";
 
+import { assertDelegatedAccess } from "@/core/rbac/delegation";
+import type { SessionUser } from "@/types/database";
+async function assertPermissionGrant(
+  actor: SessionUser,
+  ids: number[],
+): Promise<void> {
+  if (!actor.scopeAll)
+    throw new Error("Pengelolaan peran bersama memerlukan akses semua brand.");
+  const rows = ids.length
+    ? await queryRows<RowDataPacket>(
+        `SELECT code FROM permissions WHERE id IN (${ids.map(() => "?").join(",")})`,
+        ids,
+      )
+    : [];
+  assertDelegatedAccess(actor, {
+    roleName: "",
+    permissions: rows.map((r) => String(r.code)),
+    scopeAll: false,
+    brandIds: [],
+  });
+}
+async function assertRoleManagement(
+  actor: SessionUser,
+  roleId: number,
+): Promise<void> {
+  if (!actor.scopeAll)
+    throw new Error("Pengelolaan peran bersama memerlukan akses semua brand.");
+  const rows = await queryRows<RowDataPacket>(
+    "SELECT p.id FROM role_permissions rp JOIN permissions p ON p.id=rp.permission_id WHERE rp.role_id=?",
+    [roleId],
+  );
+  await assertPermissionGrant(
+    actor,
+    rows.map((r) => Number(r.id)),
+  );
+}
 const ROLES_PATH = "/settings/roles";
 
 function fail(message: string): never {
@@ -51,10 +87,13 @@ export async function createRoleAction(formData: FormData): Promise<void> {
 
   const permissionIds = [...new Set(parsed.data.permissionIds)];
 
-  if ((await countExistingPermissions(permissionIds)) !== permissionIds.length) {
+  if (
+    (await countExistingPermissions(permissionIds)) !== permissionIds.length
+  ) {
     fail("Sebagian izin yang dipilih tidak valid.");
   }
 
+  await assertPermissionGrant(actor, permissionIds);
   let roleId = 0;
 
   try {
@@ -106,16 +145,20 @@ export async function updateRoleAction(formData: FormData): Promise<void> {
     fail("Peran tidak ditemukan.");
   }
 
+  await assertRoleManagement(actor, role.id);
+  if (role.name === "Super Admin" && actor.roleName !== "Super Admin")
+    fail("Hanya Super Admin dapat mengelola peran ini.");
   if (role.isSystem && role.name !== parsed.data.name) {
-    fail("Nama peran sistem tidak dapat diubah. Ubah deskripsi atau izinnya saja.");
+    fail(
+      "Nama peran sistem tidak dapat diubah. Ubah deskripsi atau izinnya saja.",
+    );
   }
 
   try {
-    await executeSql("UPDATE roles SET name = ?, description = ? WHERE id = ?", [
-      parsed.data.name,
-      parsed.data.description,
-      parsed.data.roleId,
-    ]);
+    await executeSql(
+      "UPDATE roles SET name = ?, description = ? WHERE id = ?",
+      [parsed.data.name, parsed.data.description, parsed.data.roleId],
+    );
   } catch (error) {
     fail(duplicateMessage(error, "Nama peran sudah digunakan."));
   }
@@ -131,7 +174,9 @@ export async function updateRoleAction(formData: FormData): Promise<void> {
   done("Peran berhasil diperbarui.");
 }
 
-export async function updateRolePermissionsAction(formData: FormData): Promise<void> {
+export async function updateRolePermissionsAction(
+  formData: FormData,
+): Promise<void> {
   const actor = await requirePermission(PERMISSIONS.roleManage);
   const parsed = rolePermissionsSchema.safeParse({
     roleId: formData.get("roleId"),
@@ -154,11 +199,18 @@ export async function updateRolePermissionsAction(formData: FormData): Promise<v
 
   const permissionIds = [...new Set(parsed.data.permissionIds)];
 
-  if ((await countExistingPermissions(permissionIds)) !== permissionIds.length) {
+  if (
+    (await countExistingPermissions(permissionIds)) !== permissionIds.length
+  ) {
     fail("Sebagian izin yang dipilih tidak valid.");
   }
 
+  await assertRoleManagement(actor, role.id);
+  await assertPermissionGrant(actor, permissionIds);
   await withTransaction(async (connection) => {
+    await connection.execute("SELECT id FROM roles WHERE id=? FOR UPDATE", [
+      role.id,
+    ]);
     await connection.execute("DELETE FROM role_permissions WHERE role_id = ?", [
       role.id,
     ]);
@@ -202,10 +254,13 @@ export async function deleteRoleAction(formData: FormData): Promise<void> {
     fail("Peran sistem tidak dapat dihapus.");
   }
 
+  await assertRoleManagement(actor, role.id);
   const userCount = await countUsersInRole(role.id);
 
   if (userCount > 0) {
-    fail(`Peran ${role.name} masih dipakai oleh ${userCount} pengguna. Pindahkan pengguna terlebih dahulu.`);
+    fail(
+      `Peran ${role.name} masih dipakai oleh ${userCount} pengguna. Pindahkan pengguna terlebih dahulu.`,
+    );
   }
 
   await executeSql("DELETE FROM roles WHERE id = ?", [role.id]);

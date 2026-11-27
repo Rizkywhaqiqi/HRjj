@@ -1,9 +1,16 @@
 "use client";
 
+import { SubmitButton } from "@/components/ui/form";
+
 import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
 import type { SelectOption } from "@/modules/master-data/queries";
-import { Alert, buttonPrimary, buttonSecondary, inputClass } from "@/components/ui/primitives";
+import {
+  Alert,
+  buttonPrimary,
+  buttonSecondary,
+  inputClass,
+} from "@/components/ui/primitives";
 
 function FormSection({
   title,
@@ -38,7 +45,11 @@ function FormField({
     <label className="grid gap-1.5 text-sm font-medium text-slate-700">
       <span>
         {label}
-        {required ? <span className="ml-1 text-rose-600" aria-hidden="true">*</span> : null}
+        {required ? (
+          <span className="ml-1 text-rose-600" aria-hidden="true">
+            *
+          </span>
+        ) : null}
       </span>
       {children}
     </label>
@@ -67,11 +78,15 @@ export default function EmployeeForm({
   const [divisionId, setDivisionId] = useState("");
   const [positionId, setPositionId] = useState("");
   const filteredCompanies = useMemo(
-    () => companies.filter((item) => !brandId || String(item.parentId) === brandId),
+    () =>
+      companies.filter((item) => !brandId || String(item.parentId) === brandId),
     [companies, brandId],
   );
   const filteredPositions = useMemo(
-    () => positions.filter((item) => !divisionId || String(item.parentId) === divisionId),
+    () =>
+      positions.filter(
+        (item) => !divisionId || String(item.parentId) === divisionId,
+      ),
     [positions, divisionId],
   );
 
@@ -79,7 +94,8 @@ export default function EmployeeForm({
     <form action={action} className="space-y-5">
       <input type="hidden" name="returnPath" value="/employees/new" />
       <div className="rounded-xl border border-brand-100 bg-brand-50 px-4 py-3 text-sm text-brand-900">
-        Karyawan langsung aktif setelah nama dan penempatan dipilih. Data pribadi yang kosong dapat dilengkapi nanti.
+        Karyawan langsung aktif setelah nama dan penempatan dipilih. Data
+        pribadi yang kosong dapat dilengkapi nanti.
       </div>
 
       <FormSection
@@ -88,7 +104,12 @@ export default function EmployeeForm({
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField label="Nama lengkap" required>
-            <input name="fullName" required autoComplete="name" className={inputClass} />
+            <input
+              name="fullName"
+              required
+              autoComplete="name"
+              className={inputClass}
+            />
           </FormField>
           <FormField label="NIK (16 digit, bisa dilengkapi nanti)">
             <input
@@ -132,10 +153,20 @@ export default function EmployeeForm({
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField label="Nomor telepon">
-            <input name="phone" type="tel" autoComplete="tel" className={inputClass} />
+            <input
+              name="phone"
+              type="tel"
+              autoComplete="tel"
+              className={inputClass}
+            />
           </FormField>
           <FormField label="Email (opsional)">
-            <input name="email" type="email" autoComplete="email" className={inputClass} />
+            <input
+              name="email"
+              type="email"
+              autoComplete="email"
+              className={inputClass}
+            />
           </FormField>
           <FormField label="Alamat domisili">
             <textarea name="addressCurrent" rows={3} className={inputClass} />
@@ -173,7 +204,11 @@ export default function EmployeeForm({
               className={inputClass}
             >
               <option value="">Pilih brand</option>
-              {brands.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              {brands.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
             </select>
           </FormField>
           <FormField label="CV / perusahaan" required>
@@ -185,7 +220,11 @@ export default function EmployeeForm({
               className={inputClass}
             >
               <option value="">Pilih CV</option>
-              {filteredCompanies.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              {filteredCompanies.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
             </select>
           </FormField>
           <FormField label="Divisi" required>
@@ -199,7 +238,11 @@ export default function EmployeeForm({
               className={inputClass}
             >
               <option value="">Pilih divisi</option>
-              {divisions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              {divisions.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
             </select>
           </FormField>
           <FormField label="Jabatan" required>
@@ -211,13 +254,26 @@ export default function EmployeeForm({
               className={inputClass}
             >
               <option value="">Pilih jabatan</option>
-              {filteredPositions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              {filteredPositions.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
             </select>
           </FormField>
           <FormField label="Lokasi kerja" required>
-            <select name="locationId" required defaultValue="" className={inputClass}>
+            <select
+              name="locationId"
+              required
+              defaultValue=""
+              className={inputClass}
+            >
               <option value="">Pilih lokasi</option>
-              {locations.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              {locations.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
             </select>
           </FormField>
         </div>
@@ -233,22 +289,36 @@ export default function EmployeeForm({
               <input name="npwp" autoComplete="off" className={inputClass} />
             </FormField>
             <FormField label="Nama bank (opsional)">
-              <input name="bankName" autoComplete="off" className={inputClass} />
+              <input
+                name="bankName"
+                autoComplete="off"
+                className={inputClass}
+              />
             </FormField>
             <FormField label="Nomor rekening (opsional)">
-              <input name="bankAccountNumber" inputMode="numeric" autoComplete="off" className={inputClass} />
+              <input
+                name="bankAccountNumber"
+                inputMode="numeric"
+                autoComplete="off"
+                className={inputClass}
+              />
             </FormField>
           </div>
         </FormSection>
       ) : (
         <Alert tone="info">
-          NPWP dan rekening bank hanya dapat diisi oleh pengguna dengan izin data sensitif.
+          NPWP dan rekening bank hanya dapat diisi oleh pengguna dengan izin
+          data sensitif.
         </Alert>
       )}
 
       <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:justify-end">
-        <Link href="/employees" className={buttonSecondary}>Batal</Link>
-        <button type="submit" className={buttonPrimary}>Simpan & aktifkan</button>
+        <Link href="/employees" className={buttonSecondary}>
+          Batal
+        </Link>
+        <SubmitButton unstyled className={buttonPrimary}>
+          Simpan & aktifkan
+        </SubmitButton>
       </div>
     </form>
   );

@@ -1,5 +1,6 @@
 "use server";
 
+import { updateTag } from "next/cache";
 import { executeSql, withTransaction } from "@/core/db";
 import { AUDIT_ACTIONS, logAudit } from "@/core/audit/log";
 import { firstIssueMessage, redirectWithMessage } from "@/core/http/navigation";
@@ -41,6 +42,7 @@ function fail(path: string, message: string): never {
 }
 
 function done(path: string, message: string): never {
+  updateTag("master-data");
   return redirectWithMessage(path, "ok", message);
 }
 
@@ -55,7 +57,9 @@ function errorCode(error: unknown): string | undefined {
 }
 
 function duplicateMessage(error: unknown, fallback: string): string {
-  return errorCode(error) === "ER_DUP_ENTRY" ? fallback : "Gagal menyimpan data.";
+  return errorCode(error) === "ER_DUP_ENTRY"
+    ? fallback
+    : "Gagal menyimpan data.";
 }
 
 function referenceMessage(error: unknown, fallback: string): string {
@@ -69,6 +73,11 @@ function referenceMessage(error: unknown, fallback: string): string {
 
 export async function createBrandAction(formData: FormData): Promise<void> {
   const user = await requirePermission(PERMISSIONS.masterDataManage);
+  if (!user.scopeAll)
+    fail(
+      BASE,
+      "Data master bersama hanya dapat dikelola dengan akses semua brand.",
+    );
   const parsed = brandCreateSchema.safeParse({
     code: formData.get("code"),
     name: formData.get("name"),
@@ -93,7 +102,10 @@ export async function createBrandAction(formData: FormData): Promise<void> {
       details: { code: parsed.data.code, name: parsed.data.name },
     });
   } catch (error) {
-    fail(BASE, duplicateMessage(error, "Kode atau nama brand sudah digunakan."));
+    fail(
+      BASE,
+      duplicateMessage(error, "Kode atau nama brand sudah digunakan."),
+    );
   }
 
   done(BASE, "Brand berhasil ditambahkan.");
@@ -101,6 +113,11 @@ export async function createBrandAction(formData: FormData): Promise<void> {
 
 export async function updateBrandAction(formData: FormData): Promise<void> {
   const user = await requirePermission(PERMISSIONS.masterDataManage);
+  if (!user.scopeAll)
+    fail(
+      BASE,
+      "Data master bersama hanya dapat dikelola dengan akses semua brand.",
+    );
   const parsed = brandUpdateSchema.safeParse({
     id: formData.get("id"),
     code: formData.get("code"),
@@ -115,7 +132,12 @@ export async function updateBrandAction(formData: FormData): Promise<void> {
   try {
     await executeSql(
       "UPDATE brands SET code = ?, name = ?, description = ? WHERE id = ?",
-      [parsed.data.code, parsed.data.name, parsed.data.description, parsed.data.id],
+      [
+        parsed.data.code,
+        parsed.data.name,
+        parsed.data.description,
+        parsed.data.id,
+      ],
     );
 
     await logAudit({
@@ -126,7 +148,10 @@ export async function updateBrandAction(formData: FormData): Promise<void> {
       details: { code: parsed.data.code, name: parsed.data.name },
     });
   } catch (error) {
-    fail(BASE, duplicateMessage(error, "Kode atau nama brand sudah digunakan."));
+    fail(
+      BASE,
+      duplicateMessage(error, "Kode atau nama brand sudah digunakan."),
+    );
   }
 
   done(BASE, "Brand berhasil diperbarui.");
@@ -136,6 +161,11 @@ export async function updateBrandAction(formData: FormData): Promise<void> {
 
 export async function createCompanyAction(formData: FormData): Promise<void> {
   const user = await requirePermission(PERMISSIONS.masterDataManage);
+  if (!user.scopeAll)
+    fail(
+      BASE,
+      "Data master bersama hanya dapat dikelola dengan akses semua brand.",
+    );
   const parsed = companyCreateSchema.safeParse({
     brandId: formData.get("brandId"),
     name: formData.get("name"),
@@ -185,6 +215,11 @@ export async function createCompanyAction(formData: FormData): Promise<void> {
 
 export async function updateCompanyAction(formData: FormData): Promise<void> {
   const user = await requirePermission(PERMISSIONS.masterDataManage);
+  if (!user.scopeAll)
+    fail(
+      BASE,
+      "Data master bersama hanya dapat dikelola dengan akses semua brand.",
+    );
   const parsed = companyUpdateSchema.safeParse({
     id: formData.get("id"),
     brandId: formData.get("brandId"),
@@ -245,6 +280,11 @@ export async function updateCompanyAction(formData: FormData): Promise<void> {
 
 export async function createDivisionAction(formData: FormData): Promise<void> {
   const user = await requirePermission(PERMISSIONS.masterDataManage);
+  if (!user.scopeAll)
+    fail(
+      BASE,
+      "Data master bersama hanya dapat dikelola dengan akses semua brand.",
+    );
   const parsed = divisionCreateSchema.safeParse({ name: formData.get("name") });
 
   if (!parsed.success) {
@@ -272,6 +312,11 @@ export async function createDivisionAction(formData: FormData): Promise<void> {
 
 export async function updateDivisionAction(formData: FormData): Promise<void> {
   const user = await requirePermission(PERMISSIONS.masterDataManage);
+  if (!user.scopeAll)
+    fail(
+      BASE,
+      "Data master bersama hanya dapat dikelola dengan akses semua brand.",
+    );
   const parsed = divisionUpdateSchema.safeParse({
     id: formData.get("id"),
     name: formData.get("name"),
@@ -305,6 +350,11 @@ export async function updateDivisionAction(formData: FormData): Promise<void> {
 
 export async function createPositionAction(formData: FormData): Promise<void> {
   const user = await requirePermission(PERMISSIONS.masterDataManage);
+  if (!user.scopeAll)
+    fail(
+      BASE,
+      "Data master bersama hanya dapat dikelola dengan akses semua brand.",
+    );
   const parsed = positionCreateSchema.safeParse({
     divisionId: formData.get("divisionId"),
     name: formData.get("name"),
@@ -334,7 +384,10 @@ export async function createPositionAction(formData: FormData): Promise<void> {
   } catch (error) {
     fail(
       BASE,
-      duplicateMessage(error, "Jabatan dengan nama tersebut sudah ada di divisi ini."),
+      duplicateMessage(
+        error,
+        "Jabatan dengan nama tersebut sudah ada di divisi ini.",
+      ),
     );
   }
 
@@ -343,6 +396,11 @@ export async function createPositionAction(formData: FormData): Promise<void> {
 
 export async function updatePositionAction(formData: FormData): Promise<void> {
   const user = await requirePermission(PERMISSIONS.masterDataManage);
+  if (!user.scopeAll)
+    fail(
+      BASE,
+      "Data master bersama hanya dapat dikelola dengan akses semua brand.",
+    );
   const parsed = positionUpdateSchema.safeParse({
     id: formData.get("id"),
     divisionId: formData.get("divisionId"),
@@ -358,11 +416,10 @@ export async function updatePositionAction(formData: FormData): Promise<void> {
   }
 
   try {
-    await executeSql("UPDATE positions SET division_id = ?, name = ? WHERE id = ?", [
-      parsed.data.divisionId,
-      parsed.data.name,
-      parsed.data.id,
-    ]);
+    await executeSql(
+      "UPDATE positions SET division_id = ?, name = ? WHERE id = ?",
+      [parsed.data.divisionId, parsed.data.name, parsed.data.id],
+    );
 
     await logAudit({
       userId: user.id,
@@ -374,7 +431,10 @@ export async function updatePositionAction(formData: FormData): Promise<void> {
   } catch (error) {
     fail(
       BASE,
-      duplicateMessage(error, "Jabatan dengan nama tersebut sudah ada di divisi ini."),
+      duplicateMessage(
+        error,
+        "Jabatan dengan nama tersebut sudah ada di divisi ini.",
+      ),
     );
   }
 
@@ -385,6 +445,11 @@ export async function updatePositionAction(formData: FormData): Promise<void> {
 
 export async function createLocationAction(formData: FormData): Promise<void> {
   const user = await requirePermission(PERMISSIONS.masterDataManage);
+  if (!user.scopeAll)
+    fail(
+      BASE,
+      "Data master bersama hanya dapat dikelola dengan akses semua brand.",
+    );
   const parsed = locationCreateSchema.safeParse({
     brandId: formData.get("brandId"),
     name: formData.get("name"),
@@ -396,14 +461,22 @@ export async function createLocationAction(formData: FormData): Promise<void> {
     fail(BASE, firstIssueMessage(parsed.error));
   }
 
-  if (parsed.data.brandId !== null && !(await brandExists(parsed.data.brandId))) {
+  if (
+    parsed.data.brandId !== null &&
+    !(await brandExists(parsed.data.brandId))
+  ) {
     fail(BASE, "Brand yang dipilih tidak ditemukan.");
   }
 
   try {
     const result = await executeSql(
       "INSERT INTO locations (brand_id, name, city, address) VALUES (?, ?, ?, ?)",
-      [parsed.data.brandId, parsed.data.name, parsed.data.city, parsed.data.address],
+      [
+        parsed.data.brandId,
+        parsed.data.name,
+        parsed.data.city,
+        parsed.data.address,
+      ],
     );
 
     await logAudit({
@@ -422,6 +495,11 @@ export async function createLocationAction(formData: FormData): Promise<void> {
 
 export async function updateLocationAction(formData: FormData): Promise<void> {
   const user = await requirePermission(PERMISSIONS.masterDataManage);
+  if (!user.scopeAll)
+    fail(
+      BASE,
+      "Data master bersama hanya dapat dikelola dengan akses semua brand.",
+    );
   const parsed = locationUpdateSchema.safeParse({
     id: formData.get("id"),
     brandId: formData.get("brandId"),
@@ -434,7 +512,10 @@ export async function updateLocationAction(formData: FormData): Promise<void> {
     fail(BASE, firstIssueMessage(parsed.error));
   }
 
-  if (parsed.data.brandId !== null && !(await brandExists(parsed.data.brandId))) {
+  if (
+    parsed.data.brandId !== null &&
+    !(await brandExists(parsed.data.brandId))
+  ) {
     fail(BASE, "Brand yang dipilih tidak ditemukan.");
   }
 
@@ -466,8 +547,15 @@ export async function updateLocationAction(formData: FormData): Promise<void> {
 
 /* ------------------------------- Exit reason ------------------------------- */
 
-export async function createExitReasonAction(formData: FormData): Promise<void> {
+export async function createExitReasonAction(
+  formData: FormData,
+): Promise<void> {
   const user = await requirePermission(PERMISSIONS.masterDataManage);
+  if (!user.scopeAll)
+    fail(
+      BASE,
+      "Data master bersama hanya dapat dikelola dengan akses semua brand.",
+    );
   const parsed = exitReasonCreateSchema.safeParse({
     name: formData.get("name"),
     severity: formData.get("severity"),
@@ -502,8 +590,15 @@ export async function createExitReasonAction(formData: FormData): Promise<void> 
   done(BASE, "Alasan keluar berhasil ditambahkan.");
 }
 
-export async function updateExitReasonAction(formData: FormData): Promise<void> {
+export async function updateExitReasonAction(
+  formData: FormData,
+): Promise<void> {
   const user = await requirePermission(PERMISSIONS.masterDataManage);
+  if (!user.scopeAll)
+    fail(
+      BASE,
+      "Data master bersama hanya dapat dikelola dengan akses semua brand.",
+    );
   const parsed = exitReasonUpdateSchema.safeParse({
     id: formData.get("id"),
     name: formData.get("name"),
@@ -518,7 +613,12 @@ export async function updateExitReasonAction(formData: FormData): Promise<void> 
   try {
     await executeSql(
       "UPDATE exit_reasons SET name = ?, severity = ?, rehirable = ? WHERE id = ?",
-      [parsed.data.name, parsed.data.severity, parsed.data.rehirable, parsed.data.id],
+      [
+        parsed.data.name,
+        parsed.data.severity,
+        parsed.data.rehirable,
+        parsed.data.id,
+      ],
     );
 
     await logAudit({
@@ -541,8 +641,15 @@ export async function updateExitReasonAction(formData: FormData): Promise<void> 
 
 /* ------------------------------ Contract type ------------------------------ */
 
-export async function createContractTypeAction(formData: FormData): Promise<void> {
+export async function createContractTypeAction(
+  formData: FormData,
+): Promise<void> {
   const user = await requirePermission(PERMISSIONS.masterDataManage);
+  if (!user.scopeAll)
+    fail(
+      BASE,
+      "Data master bersama hanya dapat dikelola dengan akses semua brand.",
+    );
   const parsed = contractTypeCreateSchema.safeParse({
     name: formData.get("name"),
     defaultMonths: formData.get("defaultMonths"),
@@ -574,17 +681,21 @@ export async function createContractTypeAction(formData: FormData): Promise<void
       details: { name: parsed.data.name, isPermanent: parsed.data.isPermanent },
     });
   } catch (error) {
-    fail(
-      BASE,
-      duplicateMessage(error, "Nama jenis kontrak sudah digunakan."),
-    );
+    fail(BASE, duplicateMessage(error, "Nama jenis kontrak sudah digunakan."));
   }
 
   done(BASE, "Jenis kontrak berhasil ditambahkan.");
 }
 
-export async function updateContractTypeAction(formData: FormData): Promise<void> {
+export async function updateContractTypeAction(
+  formData: FormData,
+): Promise<void> {
   const user = await requirePermission(PERMISSIONS.masterDataManage);
+  if (!user.scopeAll)
+    fail(
+      BASE,
+      "Data master bersama hanya dapat dikelola dengan akses semua brand.",
+    );
   const parsed = contractTypeUpdateSchema.safeParse({
     id: formData.get("id"),
     name: formData.get("name"),
@@ -619,10 +730,7 @@ export async function updateContractTypeAction(formData: FormData): Promise<void
       details: { name: parsed.data.name, isPermanent: parsed.data.isPermanent },
     });
   } catch (error) {
-    fail(
-      BASE,
-      duplicateMessage(error, "Nama jenis kontrak sudah digunakan."),
-    );
+    fail(BASE, duplicateMessage(error, "Nama jenis kontrak sudah digunakan."));
   }
 
   done(BASE, "Jenis kontrak berhasil diperbarui.");
@@ -665,11 +773,21 @@ const DELETE_ENTITIES: Record<string, DeleteEntityConfig> = {
   position: { ...ACTIVE_ENTITIES.position, usage: positionUsageCount },
   location: { ...ACTIVE_ENTITIES.location, usage: locationUsageCount },
   exit_reason: { ...ACTIVE_ENTITIES.exit_reason, usage: exitReasonUsageCount },
-  contract_type: { ...ACTIVE_ENTITIES.contract_type, usage: contractTypeUsageCount },
+  contract_type: {
+    ...ACTIVE_ENTITIES.contract_type,
+    usage: contractTypeUsageCount,
+  },
 };
 
-export async function setMasterDataActiveAction(formData: FormData): Promise<void> {
+export async function setMasterDataActiveAction(
+  formData: FormData,
+): Promise<void> {
   const user = await requirePermission(PERMISSIONS.masterDataManage);
+  if (!user.scopeAll)
+    fail(
+      BASE,
+      "Data master bersama hanya dapat dikelola dengan akses semua brand.",
+    );
   const entity = String(formData.get("entity") ?? "");
   const config = ACTIVE_ENTITIES[entity];
 
@@ -706,10 +824,19 @@ export async function setMasterDataActiveAction(formData: FormData): Promise<voi
   );
 }
 
-export async function deleteMasterDataAction(formData: FormData): Promise<void> {
+export async function deleteMasterDataAction(
+  formData: FormData,
+): Promise<void> {
   const user = await requirePermission(PERMISSIONS.masterDataManage);
+  if (!user.scopeAll)
+    fail(
+      BASE,
+      "Data master bersama hanya dapat dikelola dengan akses semua brand.",
+    );
   const entity = String(formData.get("entity") ?? "");
-  const config = DELETE_ENTITIES[entity];
+  const config = Object.hasOwn(DELETE_ENTITIES, entity)
+    ? DELETE_ENTITIES[entity]
+    : undefined;
 
   if (!config) {
     fail(BASE, "Jenis data master tidak dikenal.");
@@ -731,7 +858,9 @@ export async function deleteMasterDataAction(formData: FormData): Promise<void> 
   }
 
   try {
-    await executeSql(`DELETE FROM ${config.table} WHERE id = ?`, [parsed.data.id]);
+    await executeSql(`DELETE FROM ${config.table} WHERE id = ?`, [
+      parsed.data.id,
+    ]);
   } catch (error) {
     fail(
       config.path,

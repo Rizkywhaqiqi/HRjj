@@ -15,11 +15,13 @@ export function SubmitButton({
   pendingLabel = "Menyimpan...",
   variant = "primary",
   className,
+  unstyled = false,
 }: {
   children: ReactNode;
   pendingLabel?: string;
   variant?: keyof typeof VARIANTS;
   className?: string;
+  unstyled?: boolean;
 }) {
   const { pending } = useFormStatus();
 
@@ -28,7 +30,7 @@ export function SubmitButton({
       type="submit"
       disabled={pending}
       aria-busy={pending}
-      className={cn(VARIANTS[variant], className)}
+      className={cn(!unstyled && VARIANTS[variant], className)}
     >
       {pending ? pendingLabel : children}
     </button>

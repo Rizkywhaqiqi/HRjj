@@ -1,3 +1,4 @@
+import { SubmitButton } from "@/components/ui/form";
 import { requirePermission } from "@/core/rbac/guard";
 import { PERMISSIONS } from "@/core/rbac/permissions";
 import {
@@ -53,12 +54,12 @@ export default async function FeatureFlagsPage({
                     name="enabled"
                     value={flag.is_enabled ? "false" : "true"}
                   />
-                  <button
-                    type="submit"
+                  <SubmitButton
+                    unstyled
                     className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                   >
                     {flag.is_enabled ? "Nonaktifkan" : "Aktifkan"}
-                  </button>
+                  </SubmitButton>
                 </form>
               </li>
             ))}

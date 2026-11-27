@@ -1,3 +1,4 @@
+import { sessionArray } from "./session-values";
 import { randomUUID } from "node:crypto";
 import { cache } from "react";
 import { cookies } from "next/headers";
@@ -22,8 +23,8 @@ interface SessionUserRow extends RowDataPacket {
   session_version: number;
   scope_all: 0 | 1;
   is_active: 0 | 1;
-  permissions_csv: string | null;
-  brand_ids_csv: string | null;
+  permissions_json: unknown;
+  brand_ids_json: unknown;
 }
 
 function getSecretKey(): Uint8Array {
@@ -112,23 +113,22 @@ const loadSessionUser = cache(async (): Promise<SessionUser | null> => {
   const users = await queryRows<SessionUserRow>(
     `SELECT u.id, u.name, u.email, u.role_id, r.name AS role_name,
             u.session_version, u.scope_all, u.is_active,
-            GROUP_CONCAT(DISTINCT p.code ORDER BY p.code SEPARATOR ',') AS permissions_csv,
-            GROUP_CONCAT(DISTINCT uba.brand_id ORDER BY uba.brand_id SEPARATOR ',') AS brand_ids_csv
+            (SELECT JSON_ARRAYAGG(p.code) FROM role_permissions rp JOIN permissions p ON p.id=rp.permission_id WHERE rp.role_id=u.role_id) AS permissions_json,
+            (SELECT JSON_ARRAYAGG(uba.brand_id) FROM user_brand_access uba WHERE uba.user_id=u.id) AS brand_ids_json
      FROM users u
      INNER JOIN roles r ON r.id = u.role_id
-     LEFT JOIN role_permissions rp ON rp.role_id = u.role_id
-     LEFT JOIN permissions p ON p.id = rp.permission_id
-     LEFT JOIN user_brand_access uba ON uba.user_id = u.id
      WHERE u.id = ?
-     GROUP BY u.id, u.name, u.email, u.role_id, r.name,
-              u.session_version, u.scope_all, u.is_active
      LIMIT 1`,
     [token.userId],
   );
 
   const user = users[0];
 
-  if (!user || user.is_active !== 1 || user.session_version !== token.sessionVersion) {
+  if (
+    !user ||
+    user.is_active !== 1 ||
+    user.session_version !== token.sessionVersion
+  ) {
     return null;
   }
 
@@ -140,11 +140,12 @@ const loadSessionUser = cache(async (): Promise<SessionUser | null> => {
     roleName: user.role_name,
     scopeAll: user.scope_all === 1,
     sessionVersion: user.session_version,
-    brandIds: (user.brand_ids_csv ?? "")
-      .split(",")
-      .filter(Boolean)
-      .map(Number),
-    permissions: (user.permissions_csv ?? "").split(",").filter(Boolean),
+    brandIds: sessionArray(user.brand_ids_json)
+      .map(Number)
+      .filter((id) => Number.isSafeInteger(id) && id > 0),
+    permissions: sessionArray(user.permissions_json).filter(
+      (code): code is string => typeof code === "string",
+    ),
   };
 });
 

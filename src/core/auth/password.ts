@@ -9,7 +9,11 @@ export const PASSWORD_MAX_LENGTH = 72;
 export const passwordSchema = z
   .string()
   .min(PASSWORD_MIN_LENGTH, `Password minimal ${PASSWORD_MIN_LENGTH} karakter`)
-  .max(PASSWORD_MAX_LENGTH, `Password maksimal ${PASSWORD_MAX_LENGTH} karakter`);
+  .max(PASSWORD_MAX_LENGTH, `Password maksimal ${PASSWORD_MAX_LENGTH} karakter`)
+  .refine(
+    (value) => Buffer.byteLength(value, "utf8") <= PASSWORD_MAX_LENGTH,
+    "Password maksimal 72 byte UTF-8; kurangi karakter multibyte atau emoji.",
+  );
 
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, BCRYPT_SALT_ROUNDS);

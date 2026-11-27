@@ -1,3 +1,4 @@
+import { SubmitButton } from "@/components/ui/form";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -316,11 +317,12 @@ export default async function EmployeeDetailPage({
                   className={inputClass}
                 />
               </label>
-              <button
+              <SubmitButton
+                unstyled
                 className={`${buttonPrimary} sm:col-span-2 lg:col-span-3`}
               >
                 Simpan progres
-              </button>
+              </SubmitButton>
             </form>
           </CardBody>
         </Card>

@@ -75,3 +75,30 @@ test("mobile navigation closes on Escape, route selection and desktop resize", a
     "hidden",
   );
 });
+
+test("login sends security headers and remains usable", async ({ page }) => {
+  const response = await page.goto("/login");
+  expect(response?.headers()["x-frame-options"]).toBe("SAMEORIGIN");
+  expect(response?.headers()["content-security-policy"]).toContain(
+    "frame-ancestors 'self'",
+  );
+  expect(response?.headers()["cache-control"]).toContain("no-store");
+  await expect(
+    page.getByRole("heading", { name: "Masuk ke akun staf internal" }),
+  ).toBeVisible();
+});
+test("contract submit is disabled while a server action is pending", async ({
+  page,
+}) => {
+  await page.goto("/responsive-check/contracts");
+  const form = page.locator('form:has(select[name="contractTypeId"])');
+  await form.locator('[name="employeeId"]').selectOption("1");
+  await form.locator('[name="contractTypeId"]').selectOption("1");
+  await form.locator('[name="startDate"]').fill("2026-12-01");
+  await form.locator('[name="endDate"]').fill("2027-01-31");
+  const submit = form.locator('button[type="submit"]');
+  await submit.click();
+  await expect(submit).toBeDisabled();
+  await expect(submit).toHaveAttribute("aria-busy", "true");
+  await expect(submit).toBeEnabled();
+});
