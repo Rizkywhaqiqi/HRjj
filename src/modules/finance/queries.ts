@@ -37,7 +37,10 @@ export async function financeDirectory(
   const scope = directBrandScope(user, "e.brand_id");
   const clauses = [scope.clause];
   const params = [...scope.params];
-  if (raw.status !== "all") { clauses.push("e.is_active=?"); params.push(raw.status === "inactive" ? 0 : 1); }
+  if (raw.status !== "all") {
+    clauses.push("e.is_active=?");
+    params.push(raw.status === "inactive" ? 0 : 1);
+  }
   for (const [key, col] of [
     ["brand", "e.brand_id"],
     ["company", "e.company_id"],
@@ -147,4 +150,42 @@ export async function financeEmployee(user: SessionUser, id: number) {
     current: currentRows[0],
     future: futureRows,
   };
+}
+
+export interface SalaryListRow extends RowDataPacket {
+  id: number;
+  employee_id: number;
+  full_name: string;
+  employee_code: string;
+  company_name: string | null;
+  brand_name: string;
+  amount: string;
+  effective_date: string;
+  status: string;
+  requester: string;
+  decider: string | null;
+}
+export async function listSalaryChanges(
+  user: SessionUser,
+  mode: "requests" | "history",
+  requestedPage = 1,
+) {
+  if (!user.permissions.includes(PERMISSIONS.financeView))
+    throw new Error("FORBIDDEN");
+  const scope = directBrandScope(user, "e.brand_id");
+  const where = `${scope.clause} AND ${mode === "requests" ? "s.status='PENDING'" : "s.status<>'PENDING'"}`;
+  const [count] = await queryRows<RowDataPacket>(
+    `SELECT COUNT(*) total FROM salary_changes s JOIN employees e ON e.id=s.employee_id WHERE ${where}`,
+    scope.params,
+  );
+  const total = Number(count.total);
+  const page = Math.min(
+    Math.max(1, Number.isSafeInteger(requestedPage) ? requestedPage : 1),
+    Math.max(1, Math.ceil(total / 25)),
+  );
+  const rows = await queryRows<SalaryListRow>(
+    `SELECT s.id,s.employee_id,e.full_name,e.employee_code,c.name company_name,b.name brand_name,s.amount,DATE_FORMAT(s.effective_date,'%Y-%m-%d') effective_date,s.status,a.name requester,d.name decider FROM salary_changes s JOIN employees e ON e.id=s.employee_id LEFT JOIN companies c ON c.id=e.company_id JOIN brands b ON b.id=e.brand_id JOIN users a ON a.id=s.requested_by LEFT JOIN users d ON d.id=s.decided_by WHERE ${where} ORDER BY ${mode === "requests" ? "s.requested_at ASC,s.id ASC" : "s.decided_at DESC,s.id DESC"} LIMIT ? OFFSET ?`,
+    [...scope.params, 25, (page - 1) * 25],
+  );
+  return { rows, total, page };
 }

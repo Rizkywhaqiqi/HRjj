@@ -139,16 +139,24 @@ function ActiveBadge({ isActive }: { isActive: 0 | 1 }) {
 }
 
 function MasterDataSection({
+  hidden = false,
+  open = false,
   title,
   description,
   children,
 }: {
+  hidden?: boolean;
+  open?: boolean;
   title: string;
   description: string;
   children: ReactNode;
 }) {
   return (
-    <details className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <details
+      hidden={hidden}
+      open={open}
+      className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+    >
       <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
         <div>
           <h2 className="text-base font-semibold text-slate-900">{title}</h2>
@@ -194,18 +202,34 @@ export default async function MasterDataPage({
     listContractTypes(),
     searchParams,
   ]);
+  const section =
+    typeof params.section === "string" &&
+    ["organisation", "positions", "locations", "references"].includes(
+      params.section,
+    )
+      ? params.section
+      : "all";
+  const titles: Record<string, string> = {
+    all: "Master data",
+    organisation: "Brand & CV",
+    positions: "Jabatan & Divisi",
+    locations: "Outlet",
+    references: "Referensi HR",
+  };
   const canManage = hasPermission(actor, PERMISSIONS.masterDataManage);
 
   return (
     <div>
       <PageHeader
-        title="Master data"
+        title={titles[section]}
         description="Kelola struktur organisasi dan referensi HR yang digunakan oleh seluruh modul."
       />
       <FlashAlerts {...readFlash(params)} />
 
       <div className="grid gap-4">
         <MasterDataSection
+          hidden={section !== "all" && section !== "organisation"}
+          open={section === "organisation"}
           title="Brand"
           description={`${brands.length} brand terdaftar`}
         >
@@ -280,6 +304,8 @@ export default async function MasterDataPage({
         </MasterDataSection>
 
         <MasterDataSection
+          hidden={section !== "all" && section !== "organisation"}
+          open={section === "organisation"}
           title="CV / perusahaan"
           description={`${companies.length} CV terdaftar`}
         >
@@ -395,6 +421,8 @@ export default async function MasterDataPage({
         </MasterDataSection>
 
         <MasterDataSection
+          hidden={section !== "all" && section !== "positions"}
+          open={section === "positions"}
           title="Divisi"
           description={`${divisions.length} divisi terdaftar`}
         >
@@ -442,6 +470,8 @@ export default async function MasterDataPage({
         </MasterDataSection>
 
         <MasterDataSection
+          hidden={section !== "all" && section !== "positions"}
+          open={section === "positions"}
           title="Jabatan"
           description={`${positions.length} jabatan terdaftar`}
         >
@@ -519,6 +549,8 @@ export default async function MasterDataPage({
         </MasterDataSection>
 
         <MasterDataSection
+          hidden={section !== "all" && section !== "locations"}
+          open={section === "locations"}
           title="Lokasi"
           description={`${locations.length} lokasi terdaftar`}
         >
@@ -614,6 +646,8 @@ export default async function MasterDataPage({
         </MasterDataSection>
 
         <MasterDataSection
+          hidden={section !== "all" && section !== "references"}
+          open={section === "references"}
           title="Alasan keluar"
           description="Penentuan status rehire karyawan"
         >
@@ -706,6 +740,8 @@ export default async function MasterDataPage({
         </MasterDataSection>
 
         <MasterDataSection
+          hidden={section !== "all" && section !== "references"}
+          open={section === "references"}
           title="Jenis kontrak"
           description="Durasi dan pengingat kontrak kerja"
         >
