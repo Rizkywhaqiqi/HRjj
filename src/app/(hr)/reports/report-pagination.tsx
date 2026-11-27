@@ -26,25 +26,30 @@ export default function ReportPagination({
       </p>
       <nav
         aria-label="Navigasi halaman laporan"
-        className="flex flex-wrap items-center gap-1"
+        className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:justify-end"
       >
         {page > 1 ? (
-          <Link href={href(page - 1)} className={buttonSecondary}>
+          <Link
+            href={href(page - 1)}
+            className={`${buttonSecondary} order-2 sm:order-1`}
+          >
             Sebelumnya
           </Link>
         ) : null}
-        {pages.map((n) => (
-          <Link
-            key={n}
-            href={href(n)}
-            aria-current={n === page ? "page" : undefined}
-            className={`inline-flex h-9 min-w-9 items-center justify-center rounded-lg border px-2 text-sm font-semibold ${n === page ? "border-brand-600 bg-brand-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
-          >
-            {n}
-          </Link>
-        ))}
+        <div className="order-1 flex w-full flex-wrap justify-center gap-1 sm:order-2 sm:w-auto">
+          {pages.map((n) => (
+            <Link
+              key={n}
+              href={href(n)}
+              aria-current={n === page ? "page" : undefined}
+              className={`inline-flex h-11 min-w-11 items-center justify-center rounded-lg border px-2 text-sm font-semibold ${n === page ? "border-brand-600 bg-brand-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+            >
+              {n}
+            </Link>
+          ))}
+        </div>
         {page < count ? (
-          <Link href={href(page + 1)} className={buttonSecondary}>
+          <Link href={href(page + 1)} className={`${buttonSecondary} order-3`}>
             Berikutnya
           </Link>
         ) : null}

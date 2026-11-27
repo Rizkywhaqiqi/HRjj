@@ -34,7 +34,7 @@ export function Pagination({
   };
 
   const linkClass =
-    "inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50";
+    "inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50";
   const disabledClass = "pointer-events-none opacity-40";
 
   return (
@@ -42,10 +42,11 @@ export function Pagination({
       <p className="text-xs text-slate-500">
         Halaman {page} dari {pageCount} · {total} data
       </p>
-      <div className="flex items-center gap-2">
+      <div className="flex w-full flex-wrap items-center justify-center gap-2 sm:w-auto">
         <Link
           href={hrefFor(Math.max(1, page - 1))}
           aria-disabled={page <= 1}
+          tabIndex={page <= 1 ? -1 : undefined}
           className={cn(linkClass, page <= 1 && disabledClass)}
         >
           Sebelumnya
@@ -53,6 +54,7 @@ export function Pagination({
         <Link
           href={hrefFor(Math.min(pageCount, page + 1))}
           aria-disabled={page >= pageCount}
+          tabIndex={page >= pageCount ? -1 : undefined}
           className={cn(linkClass, page >= pageCount && disabledClass)}
         >
           Berikutnya

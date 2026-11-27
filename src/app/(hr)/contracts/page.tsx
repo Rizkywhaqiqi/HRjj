@@ -117,7 +117,7 @@ export default async function ContractsPage({
             <CardBody>
               <form
                 action={createContractAction}
-                className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5"
+                className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-5"
               >
                 {selectedEmployee ? (
                   <>
@@ -127,7 +127,7 @@ export default async function ContractsPage({
                       value={selectedEmployee.id}
                     />
                     <input name="continueToLetter" type="hidden" value="1" />
-                    <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm sm:col-span-2 lg:col-span-5">
+                    <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm sm:col-span-2 2xl:col-span-5">
                       <p className="font-semibold text-slate-900">
                         {selectedEmployee.full_name} ·{" "}
                         {selectedEmployee.employee_code}
@@ -195,7 +195,7 @@ export default async function ContractsPage({
                 </label>
                 <button
                   type="submit"
-                  className={`${buttonPrimary} sm:col-span-2 lg:col-span-5`}
+                  className={`${buttonPrimary} sm:col-span-2 2xl:col-span-5`}
                 >
                   {selectedEmployee
                     ? "Simpan kontrak & lanjut ke surat"
@@ -208,39 +208,74 @@ export default async function ContractsPage({
       ) : null}
       <Card>
         <CardBody>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1050px] text-left text-sm">
-              <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
-                <tr>
-                  <th className="px-3 py-2">Karyawan</th>
-                  <th className="px-3 py-2">CV / Brand</th>
-                  <th className="px-3 py-2">Jenis</th>
-                  <th className="px-3 py-2">Periode</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2">Surat</th>
-                  <th className="px-3 py-2">Keputusan</th>
+          <div className="responsive-table-wrap overflow-x-auto">
+            <table
+              role="table"
+              className="responsive-data-table w-full min-w-[1050px] text-left text-sm"
+            >
+              <thead
+                role="rowgroup"
+                className="border-b border-slate-200 text-xs uppercase text-slate-500"
+              >
+                <tr role="row">
+                  <th scope="col" className="px-3 py-2">
+                    Karyawan
+                  </th>
+                  <th scope="col" className="px-3 py-2">
+                    CV / Brand
+                  </th>
+                  <th scope="col" className="px-3 py-2">
+                    Jenis
+                  </th>
+                  <th scope="col" className="px-3 py-2">
+                    Periode
+                  </th>
+                  <th scope="col" className="px-3 py-2">
+                    Status
+                  </th>
+                  <th scope="col" className="px-3 py-2">
+                    Surat
+                  </th>
+                  <th scope="col" className="px-3 py-2">
+                    Keputusan
+                  </th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody role="rowgroup">
                 {contracts.map((item) => (
                   <tr
+                    role="row"
                     key={item.id}
                     className="border-b border-slate-100 align-top"
                   >
-                    <td className="px-3 py-3">
+                    <td role="cell" className="px-3 py-3">
+                      <span className="mobile-cell-label" aria-hidden="true">
+                        Karyawan
+                      </span>
                       <b>{item.full_name}</b>
                       <div className="text-xs text-slate-500">
                         {item.employee_code}
                       </div>
                     </td>
-                    <td className="px-3 py-3">
+                    <td role="cell" className="px-3 py-3">
+                      <span className="mobile-cell-label" aria-hidden="true">
+                        CV / Brand
+                      </span>
                       {item.company_name}
                       <div className="text-xs text-slate-500">
                         {item.brand_name}
                       </div>
                     </td>
-                    <td className="px-3 py-3">{item.contract_type_name}</td>
-                    <td className="px-3 py-3">
+                    <td role="cell" className="px-3 py-3">
+                      <span className="mobile-cell-label" aria-hidden="true">
+                        Jenis
+                      </span>
+                      {item.contract_type_name}
+                    </td>
+                    <td role="cell" className="px-3 py-3">
+                      <span className="mobile-cell-label" aria-hidden="true">
+                        Periode
+                      </span>
                       {formatDate(item.start_date)} —{" "}
                       {item.end_date ? formatDate(item.end_date) : "Tetap"}
                       {item.status === "RUNNING" ? (
@@ -265,14 +300,20 @@ export default async function ContractsPage({
                         </div>
                       ) : null}
                     </td>
-                    <td className="px-3 py-3">
+                    <td role="cell" className="px-3 py-3">
+                      <span className="mobile-cell-label" aria-hidden="true">
+                        Status
+                      </span>
                       <Badge
                         tone={item.status === "RUNNING" ? "success" : "neutral"}
                       >
                         {item.status}
                       </Badge>
                     </td>
-                    <td className="px-3 py-3">
+                    <td role="cell" className="px-3 py-3">
+                      <span className="mobile-cell-label" aria-hidden="true">
+                        Surat
+                      </span>
                       <div className="flex flex-col items-start gap-1">
                         {item.letter_id && canViewLetter ? (
                           <Link
@@ -316,7 +357,10 @@ export default async function ContractsPage({
                           : null}
                       </div>
                     </td>
-                    <td className="px-3 py-3">
+                    <td role="cell" className="px-3 py-3">
+                      <span className="mobile-cell-label" aria-hidden="true">
+                        Keputusan
+                      </span>
                       {canDecide && item.status === "RUNNING" ? (
                         <details>
                           <summary className="cursor-pointer text-xs font-semibold text-brand-700">

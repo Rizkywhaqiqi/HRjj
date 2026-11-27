@@ -189,11 +189,17 @@ export default async function ReportsPage({
           title="Data karyawan"
           description="25 data per halaman. Ringkasan di atas dihitung dari seluruh hasil filter."
         />
-        <div className="overflow-x-auto">
+        <div className="responsive-table-wrap overflow-x-auto">
           {rows.length ? (
-            <table className="w-full min-w-[760px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs text-slate-500">
-                <tr>
+            <table
+              role="table"
+              className="responsive-data-table w-full min-w-[760px] text-left text-sm"
+            >
+              <thead
+                role="rowgroup"
+                className="bg-slate-50 text-xs text-slate-500"
+              >
+                <tr role="row">
                   {[
                     "Kode / nama",
                     "Brand / perusahaan",
@@ -207,13 +213,17 @@ export default async function ReportsPage({
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody role="rowgroup" className="divide-y divide-slate-100">
                 {rows.map((r) => (
                   <tr
+                    role="row"
                     key={r.employee_code}
                     className="align-top hover:bg-slate-50"
                   >
-                    <td className="px-5 py-4">
+                    <td role="cell" className="px-5 py-4">
+                      <span className="mobile-cell-label" aria-hidden="true">
+                        Kode / nama
+                      </span>
                       <p className="font-semibold text-slate-900">
                         {r.full_name}
                       </p>
@@ -221,22 +231,34 @@ export default async function ReportsPage({
                         {r.employee_code}
                       </p>
                     </td>
-                    <td className="px-5 py-4">
+                    <td role="cell" className="px-5 py-4">
+                      <span className="mobile-cell-label" aria-hidden="true">
+                        Brand / perusahaan
+                      </span>
                       {r.brand_name}
                       <p className="mt-1 text-xs text-slate-500">
                         {r.company_name ?? "Belum dipilih"}
                       </p>
                     </td>
-                    <td className="px-5 py-4">
+                    <td role="cell" className="px-5 py-4">
+                      <span className="mobile-cell-label" aria-hidden="true">
+                        Jabatan / divisi
+                      </span>
                       {r.position_name}
                       <p className="mt-1 text-xs text-slate-500">
                         {r.division_name}
                       </p>
                     </td>
-                    <td className="px-5 py-4 text-slate-600">
+                    <td role="cell" className="px-5 py-4 text-slate-600">
+                      <span className="mobile-cell-label" aria-hidden="true">
+                        Lokasi
+                      </span>
                       {r.location_name}
                     </td>
-                    <td className="px-5 py-4">
+                    <td role="cell" className="px-5 py-4">
+                      <span className="mobile-cell-label" aria-hidden="true">
+                        Status
+                      </span>
                       <Badge tone={r.is_active ? "success" : "neutral"}>
                         {r.is_active ? "Aktif" : "Nonaktif"}
                       </Badge>
