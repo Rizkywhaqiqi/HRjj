@@ -128,6 +128,10 @@ const permissions = [
     "employees",
     "Melihat data pribadi karyawan",
   ],
+  ["finance.view", "finance", "Melihat data gaji dan riwayat keuangan"],
+  ["finance.manage", "finance", "Mengajukan perubahan gaji"],
+  ["finance.approve", "finance", "Memutuskan perubahan gaji"],
+  ["employee.verify", "employees", "Memverifikasi kelengkapan karyawan"],
   ["employee.export", "employees", "Mengekspor data karyawan"],
   ["contract.view", "contracts", "Melihat kontrak"],
   ["contract.create", "contracts", "Membuat kontrak"],
@@ -177,6 +181,8 @@ const employeeManagerPermissions = [
 ];
 
 const systemRoles = [
+  {name:"Keuangan",description:"Persiapan data keuangan dan pengajuan perubahan gaji",permissions:["dashboard.view","employee.view","report.view","finance.view","finance.manage"]},
+  {name:"Pemeriksa Keuangan",description:"Pemeriksaan perubahan gaji oleh pengguna selain pengaju",permissions:["dashboard.view","employee.view","report.view","finance.view","finance.approve"]},
   {
     name: "Super Admin",
     description: "Akses penuh ke seluruh modul dan brand.",

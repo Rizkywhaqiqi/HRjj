@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const screens = ["dashboard", "contracts", "reports", "letters", "audit"];
+const screens = ["dashboard", "finance", "contracts", "reports", "letters", "audit"];
 const sizes = [
   [320, 740],
   [390, 844],
@@ -16,6 +16,7 @@ for (const screen of screens) {
     for (const [width, height] of sizes) {
       await page.setViewportSize({ width, height });
       await page.goto(`/responsive-check/${screen}`);
+      await page.waitForFunction(() => document.documentElement.dataset.fixtureReady === "true");
       await expect(page.locator("main table")).toBeVisible();
       if (width === 390)
         await page.screenshot({
@@ -119,4 +120,14 @@ test("finance CV options follow the selected brand", async ({ page }) => {
   await expect(
     section.getByRole("columnheader", { name: "CV / perusahaan", exact: true }),
   ).toHaveCount(1);
+});
+
+test("finance workspace restricts CV options after selecting a brand", async ({ page }) => {
+ await page.goto('/responsive-check/finance');
+ await page.waitForFunction(() => document.documentElement.dataset.fixtureReady === 'true');
+ await page.getByLabel('Brand',{exact:true}).selectOption('1');
+ const company=page.getByLabel('CV / perusahaan',{exact:true});
+ await expect(company.locator('option[value="1"]')).toHaveCount(1);
+ await expect(company.locator('option[value="2"]')).toHaveCount(0);
+ await expect(page.getByText('Menunggu keputusan',{exact:true}).first()).toBeVisible();
 });

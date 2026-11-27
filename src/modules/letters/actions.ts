@@ -21,6 +21,7 @@ export async function createLetterAction(formData: FormData): Promise<void> {
     redirectWithMessage("/letters", "error", firstIssueMessage(parsed.error));
   const d = parsed.data;
   if (d.type === "CONTRACT") {
+    if (!actor.permissions.includes(PERMISSIONS.employeeViewSensitive) && !actor.permissions.includes(PERMISSIONS.financeView)) redirectWithMessage("/letters", "error", "Surat kontrak memerlukan izin melihat data sensitif atau keuangan.");
     await requireFeatureEnabled("contracts");
     if (!d.contractId) await requirePermission(PERMISSIONS.contractCreate);
     if (d.previousContractId)

@@ -155,6 +155,7 @@ export async function deactivateEmployeeAction(
         ],
       );
       if (result.affectedRows !== 1) throw new Error("EMPLOYEE_NOT_FOUND");
+      await connection.execute("DELETE FROM employee_verifications WHERE employee_id=?", [parsed.data.employeeId]);
     });
   } catch (error) {
     if (error instanceof Error && error.message === "EMPLOYEE_NOT_FOUND") {
@@ -271,10 +272,11 @@ export async function updateEmployeeAction(formData: FormData): Promise<void> {
   try {
     result = await withTransaction(async (connection) => {
       const [current] = await connection.execute<RowDataPacket[]>(
-        "SELECT ktp_photo_path FROM employees WHERE id=? AND (? OR brand_id IN (SELECT brand_id FROM user_brand_access WHERE user_id=?)) FOR UPDATE",
+        "SELECT ktp_photo_path,company_id,position_id,location_id FROM employees WHERE id=? AND (? OR brand_id IN (SELECT brand_id FROM user_brand_access WHERE user_id=?)) FOR UPDATE",
         [data.employeeId, actor.scopeAll, actor.id],
       );
       if (!current[0]) throw new Error("EMPLOYEE_NOT_FOUND");
+      if (current[0].company_id !== data.companyId || current[0].position_id !== data.positionId || current[0].location_id !== data.locationId) throw new Error("USE_PLACEMENT_FLOW");
       previousKtpPath = current[0].ktp_photo_path ?? null;
       const [updated] = await connection.execute<ResultSetHeader>(
         `UPDATE employees e SET e.employee_code=?, e.full_name=?, e.birth_place=?, e.birth_date=?, e.address_current=?, e.address_ktp=?, e.email=?, e.phone=?${sensitiveSet}, e.marital_status=?, e.children_count=?, e.company_id=?, e.brand_id=?, e.position_id=?, e.location_id=?, e.join_date=?${ktpPhotoPath ? ", e.ktp_photo_path=?" : ""}${data.nik ? ", e.nik_encrypted=?, e.nik_hash=?" : ""} WHERE e.id=? AND (? OR e.brand_id IN (SELECT brand_id FROM user_brand_access WHERE user_id=?))`,
@@ -304,13 +306,15 @@ export async function updateEmployeeAction(formData: FormData): Promise<void> {
           actor.id,
         ],
       );
+      await connection.execute("DELETE FROM employee_verifications WHERE employee_id=?", [data.employeeId]);
       return updated;
     });
-  } catch {
+  } catch (error) {
     if (ktpPhotoPath)
       await deleteStoredFile(`private/${ktpPhotoPath}`).catch(() =>
         console.error("[storage] Failed to clean uncommitted upload"),
       );
+    if (error instanceof Error && error.message === "USE_PLACEMENT_FLOW") fail("Gunakan Mutasi penempatan pada detail karyawan untuk mengubah CV, jabatan, atau outlet.");
     fail(
       "Gagal memperbarui karyawan. Periksa kode dan NIK yang mungkin sudah digunakan.",
     );

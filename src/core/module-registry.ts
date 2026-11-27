@@ -67,6 +67,7 @@ export const NAV_SECTIONS: readonly NavSection[] = [
         permission: PERMISSIONS.reportView,
         featureKey: "reports",
       },
+      { label: "Keuangan karyawan", href: "/finance", icon: "briefcase", permission: PERMISSIONS.financeView, featureKey: "employees" },
       {
         label: "Master data",
         href: "/master-data",

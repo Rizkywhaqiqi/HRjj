@@ -272,7 +272,7 @@ export default async function EmployeesPage({
                     defaultValue={search}
                     minLength={2}
                     maxLength={80}
-                    placeholder="Nama, kode karyawan, atau nomor telepon"
+                    placeholder="Nama atau kode karyawan"
                     className={`${inputClass} pl-10`}
                   />
                 </div>

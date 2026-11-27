@@ -16,7 +16,7 @@ test("signed but potentially revoked cookies can reach login for database valida
   assert.equal(new URL(anonymous.headers.get("location")!).pathname, "/login");
 });
 test("search normalizes whitespace and treats SQL wildcards literally", () => {
-  assert.deepEqual(employeeSearch("  Rizky   Wahyu ").params, ["Rizky Wahyu%", "Rizky Wahyu%", "Rizky Wahyu%"]);
+  assert.deepEqual(employeeSearch("  Rizky   Wahyu ").params, ["Rizky Wahyu%", "Rizky Wahyu%"]);
   assert.equal(employeeSearch("%_").params[0], "\\%\\_%");
   assert.equal(employeeSearch("R").clause, "1 = 0");
   assert.equal(employeeSearch("").clause, "1 = 1");

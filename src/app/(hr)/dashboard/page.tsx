@@ -1,3 +1,4 @@
+import FinanceOverview from "./finance-overview";
 import {
   canViewFinanceDirectory,
   financeFilters,
@@ -123,6 +124,7 @@ export default async function Dashboard({
           </Card>
         ))}
       </div>
+      {canFinance && hasPermission(actor, PERMISSIONS.financeView) ? <FinanceOverview actor={actor} /> : null}
       {finance ? (
         <FinanceDirectory
           result={finance[0]}
