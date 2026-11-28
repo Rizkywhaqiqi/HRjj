@@ -69,7 +69,9 @@ test("mobile navigation closes on Escape, route selection and desktop resize", a
   await expect(dialog).toBeHidden();
   await expect(trigger).toBeFocused();
   await trigger.click();
-  await dialog.getByRole("link", { name: "Data Karyawan", exact: true }).click();
+  await dialog
+    .getByRole("link", { name: "Data Karyawan", exact: true })
+    .click();
   await expect(dialog).toBeHidden();
   await trigger.click();
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -178,22 +180,129 @@ test("finance detail keeps amounts, forms and decisions readable on mobile and d
   }
 });
 
+test("navigation groups expand once and child buttons open real finance pages", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/responsive-check/contracts");
+  await page.waitForFunction(
+    () => document.documentElement.dataset.fixtureReady === "true",
+  );
+  const sidebar = page.locator("aside");
+  await expect(
+    sidebar.getByRole("button", { name: "Administrasi HR", exact: true }),
+  ).toHaveAttribute("aria-expanded", "true");
+  const finance = sidebar.getByRole("button", {
+    name: "Keuangan",
+    exact: true,
+  });
+  await expect(finance).toHaveAttribute("aria-expanded", "false");
+  await expect(
+    sidebar.getByRole("link", { name: "Pengajuan Gaji", exact: true }),
+  ).toBeHidden();
+  await finance.click();
+  await sidebar
+    .getByRole("link", { name: "Pengajuan Gaji", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Pengajuan Gaji", exact: true }),
+  ).toBeVisible();
+  await expect(
+    sidebar.getByRole("button", { name: "Keuangan", exact: true }),
+  ).toHaveAttribute("aria-expanded", "true");
+  await expect(
+    sidebar.getByRole("link", { name: "Pengajuan Gaji", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
+  await sidebar
+    .getByRole("link", { name: "Riwayat Gaji", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Riwayat Gaji", exact: true }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: "test-results/navigation-desktop.png",
+    fullPage: true,
+  });
+});
 
-test("navigation groups expand once and child buttons open real finance pages", async ({page})=>{
- await page.setViewportSize({width:1440,height:900});
- await page.goto('/responsive-check/contracts');
- await page.waitForFunction(()=>document.documentElement.dataset.fixtureReady==='true');
- const sidebar=page.locator('aside');
- await expect(sidebar.getByRole('button',{name:'Administrasi HR',exact:true})).toHaveAttribute('aria-expanded','true');
- const finance=sidebar.getByRole('button',{name:'Keuangan',exact:true});
- await expect(finance).toHaveAttribute('aria-expanded','false');
- await expect(sidebar.getByRole('link',{name:'Pengajuan Gaji',exact:true})).toBeHidden();
- await finance.click();
- await sidebar.getByRole('link',{name:'Pengajuan Gaji',exact:true}).click();
- await expect(page.getByRole('heading',{name:'Pengajuan Gaji',exact:true})).toBeVisible();
- await expect(sidebar.getByRole('button',{name:'Keuangan',exact:true})).toHaveAttribute('aria-expanded','true');
- await expect(sidebar.getByRole('link',{name:'Pengajuan Gaji',exact:true})).toHaveAttribute('aria-current','page');
- await sidebar.getByRole('link',{name:'Riwayat Gaji',exact:true}).click();
- await expect(page.getByRole('heading',{name:'Riwayat Gaji',exact:true})).toBeVisible();
- await page.screenshot({path:'test-results/navigation-desktop.png',fullPage:true});
+test("workspace motion can be disabled persistently and follows reduced-motion preferences", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/responsive-check/finance");
+  await page.waitForFunction(
+    () => document.documentElement.dataset.workspaceMotion === "on",
+  );
+  await expect(page.locator(".workspace-particles span")).toHaveCount(12);
+  expect(
+    await page
+      .locator(".workspace-particles")
+      .evaluate((el) => getComputedStyle(el).pointerEvents),
+  ).toBe("none");
+  expect(
+    await page
+      .locator("h1")
+      .evaluate((el) => getComputedStyle(el).animationName),
+  ).toBe("workspace-title-enter");
+  await page
+    .getByRole("button", { name: "Nonaktifkan animasi", exact: true })
+    .click();
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-workspace-motion",
+    "off",
+  );
+  await expect(page.locator(".workspace-particles")).toBeHidden();
+  expect(
+    await page
+      .locator("h1")
+      .evaluate((el) => getComputedStyle(el).animationName),
+  ).toBe("none");
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-workspace-motion",
+    "off",
+  );
+  await page
+    .getByRole("button", { name: "Aktifkan animasi", exact: true })
+    .click();
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-workspace-motion",
+    "on",
+  );
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(
+    page.getByRole("button", {
+      name: "Animasi mengikuti pengaturan kurangi gerakan perangkat",
+      exact: true,
+    }),
+  ).toBeDisabled();
+  await expect(page.locator(".workspace-particles")).toBeHidden();
+  expect(
+    await page
+      .locator("h1")
+      .evaluate((el) => getComputedStyle(el).animationName),
+  ).toBe("none");
+});
+
+test("mobile navigation offers an animation toggle without closing the menu", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/responsive-check/contracts");
+  await page.waitForFunction(
+    () => document.documentElement.dataset.workspaceMotion === "on",
+  );
+  await page.getByRole("button", { name: "Buka menu navigasi" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog
+    .getByRole("button", { name: "Nonaktifkan animasi", exact: true })
+    .click();
+  await expect(dialog).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-workspace-motion",
+    "off",
+  );
+  await page.keyboard.press("Escape");
 });

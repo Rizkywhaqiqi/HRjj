@@ -1,3 +1,5 @@
+import { WorkspaceParticles } from "@/components/motion/workspace-particles";
+import { MotionPreference } from "@/components/motion/motion-preference";
 import { SubmitButton } from "@/components/ui/form";
 import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
@@ -74,7 +76,8 @@ export function AppShell({
   children: ReactNode;
 }) {
   return (
-    <div className="min-h-dvh bg-surface lg:grid lg:grid-cols-[17rem_minmax(0,1fr)]">
+    <div className="hr-workspace relative isolate min-h-dvh bg-surface lg:grid lg:grid-cols-[17rem_minmax(0,1fr)]">
+      <WorkspaceParticles />
       <aside className="hidden border-r border-slate-200 bg-white lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col">
         <div className="px-5 py-5">
           <BrandMark />
@@ -91,6 +94,7 @@ export function AppShell({
             </div>
           </div>
           <div className="mt-3 space-y-1">
+            <MotionPreference />
             <Link
               href="/ganti-password"
               className="flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"

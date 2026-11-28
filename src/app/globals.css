@@ -226,3 +226,119 @@ main :where(input[type="file"]) {
     display: none !important;
   }
 }
+
+/* Workspace motion uses opacity/transform only; data and controls keep their layout. */
+.workspace-particles {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+.workspace-particles span {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  background: var(--color-brand-500);
+  opacity: 0.22;
+  animation: workspace-particle var(--particle-duration, 28s) ease-in-out
+    var(--particle-delay, 0s) infinite alternate;
+}
+.hr-workspace .workspace-title {
+  animation: workspace-title-enter 440ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.hr-workspace .workspace-card,
+.workspace-reveal > div > .grid > a {
+  animation: workspace-card-enter 420ms ease-out backwards;
+}
+.workspace-reveal > div > .grid > a:nth-child(2) {
+  animation-delay: 35ms;
+}
+.workspace-reveal > div > .grid > a:nth-child(3) {
+  animation-delay: 70ms;
+}
+.workspace-reveal > div > .grid > a:nth-child(4) {
+  animation-delay: 105ms;
+}
+.hr-workspace :where(button, a) {
+  transition:
+    color 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .hr-workspace :where(button, a):active:not(:disabled) {
+    transform: scale(0.99);
+  }
+}
+@keyframes workspace-title-enter {
+  from {
+    opacity: 0.55;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes workspace-card-enter {
+  from {
+    opacity: 0.75;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes workspace-particle {
+  from {
+    transform: translate3d(0, 0, 0);
+    opacity: 0.12;
+  }
+  to {
+    transform: translate3d(12px, -24px, 0);
+    opacity: 0.3;
+  }
+}
+@media (max-width: 639px) {
+  .workspace-particles span:nth-child(n + 7) {
+    display: none;
+  }
+}
+html[data-workspace-motion="off"] .workspace-particles {
+  display: none;
+}
+html[data-workspace-motion="off"]
+  .hr-workspace
+  :is(.workspace-title, .workspace-card),
+html[data-workspace-motion="off"] .workspace-reveal > div > .grid > a {
+  animation: none !important;
+}
+html[data-workspace-motion="off"] .hr-workspace :where(button, a) {
+  transition: none !important;
+  transform: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-particles {
+    display: none !important;
+  }
+  .hr-workspace :is(.workspace-title, .workspace-card),
+  .workspace-reveal > div > .grid > a {
+    animation: none !important;
+  }
+  .hr-workspace :where(button, a) {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+@media print {
+  .workspace-particles,
+  .motion-preference {
+    display: none !important;
+  }
+  .hr-workspace :is(.workspace-title, .workspace-card) {
+    animation: none !important;
+  }
+}

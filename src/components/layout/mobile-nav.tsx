@@ -1,4 +1,5 @@
 "use client";
+import { MotionPreference } from "@/components/motion/motion-preference";
 
 import { SubmitButton } from "@/components/ui/form";
 
@@ -132,6 +133,7 @@ export function MobileNav({
               <p className="truncate text-sm font-semibold">{user.name}</p>
               <p className="truncate text-xs text-slate-500">{user.roleName}</p>
             </div>
+            <MotionPreference compact />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <Link
