@@ -314,7 +314,9 @@ test('filter changes preserve expanded navigation groups',async({page})=>{
  await page.waitForFunction(()=>document.documentElement.dataset.fixtureReady==='true');
  const group=page.locator('aside').getByRole('button',{name:'Administrasi HR',exact:true});
  await group.click();await expect(group).toHaveAttribute('aria-expanded','true');
- await page.evaluate(()=>window.history.pushState(null,'','?page=2'));
+ await page.locator('input[name="search"]').fill('Dummy');
+ await page.getByRole('button',{name:'Terapkan filter',exact:true}).click();
+ await expect(page).toHaveURL(/search=Dummy/);
  await expect(group).toHaveAttribute('aria-expanded','true');
  await expect(page.locator('aside').getByRole('button',{name:'Keuangan',exact:true})).toHaveAttribute('aria-expanded','true');
 });

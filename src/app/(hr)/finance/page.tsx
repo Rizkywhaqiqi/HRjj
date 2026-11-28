@@ -1,3 +1,5 @@
+import { SubmitButton } from "@/components/ui/form";
+import Form from "next/form";
 import { formatDate } from "@/components/shared/format";
 import {
   ArrowUpRight,
@@ -30,7 +32,6 @@ import {
   Badge,
   EmptyState,
   inputClass,
-  buttonPrimary,
   buttonSecondary,
 } from "@/components/ui/primitives";
 export const instant = false;
@@ -162,8 +163,8 @@ export default async function FinancePage({
           description="Sesuaikan periode dan cakupan data yang ingin diperiksa."
         />
         <CardBody>
-          <form
-            method="get"
+          <Form
+            action="/finance"
             className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
           >
             <label className="grid gap-1.5 text-sm font-medium text-slate-600">
@@ -216,15 +217,15 @@ export default async function FinancePage({
               </select>
             </label>
             <div className="flex flex-wrap items-center gap-3 sm:col-span-2 xl:col-span-3">
-              <button className={buttonPrimary}>
+              <SubmitButton pendingLabel="Menerapkan filter...">
                 <Search size={16} aria-hidden="true" />
                 Terapkan filter
-              </button>
+              </SubmitButton>
               <Link href="/finance" className={buttonSecondary}>
                 Hapus filter
               </Link>
             </div>
-          </form>
+          </Form>
           <p className="mt-4 border-t border-slate-100 pt-3 text-xs leading-5 text-slate-500">
             Gaji mengikuti akhir periode. Penempatan dan kelengkapan mengikuti
             profil saat ini.

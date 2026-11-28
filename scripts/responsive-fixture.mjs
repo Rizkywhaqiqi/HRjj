@@ -171,6 +171,7 @@ for (const screen of [
     'from "./organization-filters"',
     'from "@/app/(hr)/finance/organization-filters"',
   );
+  s = s.replace('action="/finance"','action="/responsive-check/finance"').replace('action="/reports"','action="/responsive-check/reports"');
   s = s.replace(
     'from "./finance-directory"',
     'from "@/app/(hr)/dashboard/finance-directory"',

@@ -1,3 +1,5 @@
+import { SubmitButton } from "@/components/ui/form";
+import Form from "next/form";
 import Link from "next/link";
 import {
   hasPermission,
@@ -256,7 +258,7 @@ export default async function EmployeesPage({
       </div>
       <Card>
         <CardBody>
-          <form method="get" className="space-y-4">
+          <Form action="/employees" className="space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <label className="grid flex-1 gap-1.5 text-xs font-semibold text-slate-600">
                 Cari karyawan
@@ -277,9 +279,9 @@ export default async function EmployeesPage({
                   />
                 </div>
               </label>
-              <button type="submit" className={`${buttonPrimary} sm:min-w-28`}>
+              <SubmitButton className="sm:min-w-28" pendingLabel="Mencari...">
                 Cari
-              </button>
+              </SubmitButton>
               {hasFilters ? (
                 <Link href="/employees" className={buttonSecondary}>
                   Hapus filter
@@ -312,7 +314,7 @@ export default async function EmployeesPage({
                 </div>
               </div>
             </details>
-          </form>
+          </Form>
         </CardBody>
       </Card>
       <Card className="overflow-hidden">
