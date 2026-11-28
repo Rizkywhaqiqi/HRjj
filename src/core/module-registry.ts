@@ -71,21 +71,21 @@ export const NAV_SECTIONS: readonly NavSection[] = [
     label: "Keuangan",
     items: [
       {
-        label: "Data Keuangan",
+        label: "Data Gaji Karyawan",
         href: "/finance",
         icon: "users",
         permission: PERMISSIONS.financeView,
         featureKey: "employees",
       },
       {
-        label: "Pengajuan Gaji",
+        label: "Pengajuan Perubahan Gaji",
         href: "/finance/requests",
         icon: "briefcase",
         permission: PERMISSIONS.financeView,
         featureKey: "employees",
       },
       {
-        label: "Riwayat Gaji",
+        label: "Riwayat Perubahan Gaji",
         href: "/finance/history",
         icon: "history",
         permission: PERMISSIONS.financeView,
@@ -109,7 +109,7 @@ export const NAV_SECTIONS: readonly NavSection[] = [
     label: "Master Data",
     items: [
       {
-        label: "Semua Master Data",
+        label: "Semua Referensi",
         href: "/master-data",
         icon: "building",
         permission: PERMISSIONS.masterDataView,
@@ -133,7 +133,7 @@ export const NAV_SECTIONS: readonly NavSection[] = [
         permission: PERMISSIONS.masterDataView,
       },
       {
-        label: "Referensi HR",
+        label: "Kontrak & Alasan Keluar",
         href: "/master-data?section=references",
         icon: "history",
         permission: PERMISSIONS.masterDataView,

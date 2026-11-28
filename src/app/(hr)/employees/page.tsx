@@ -1,3 +1,5 @@
+import { SubmitButton } from "@/components/ui/form";
+import Form from "next/form";
 import Link from "next/link";
 import {
   hasPermission,
@@ -192,14 +194,14 @@ export default async function EmployeesPage({
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Karyawan"
+        title="Data Karyawan"
         description="Kelola profil, penempatan, dan dokumen karyawan dalam satu tempat."
         action={
           canCreate ? (
             <div className="flex flex-wrap gap-2">
               <Link href="/employees/import" className={buttonSecondary}>
                 <Upload size={16} aria-hidden="true" />
-                Import Excel
+                Impor karyawan
               </Link>
               <Link href="/employees/new" className={buttonPrimary}>
                 <Plus size={17} aria-hidden="true" />
@@ -256,7 +258,7 @@ export default async function EmployeesPage({
       </div>
       <Card>
         <CardBody>
-          <form method="get" className="space-y-4">
+          <Form action="/employees" className="space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <label className="grid flex-1 gap-1.5 text-xs font-semibold text-slate-600">
                 Cari karyawan
@@ -277,12 +279,12 @@ export default async function EmployeesPage({
                   />
                 </div>
               </label>
-              <button type="submit" className={`${buttonPrimary} sm:min-w-28`}>
+              <SubmitButton className="sm:min-w-28" pendingLabel="Mencari...">
                 Cari
-              </button>
+              </SubmitButton>
               {hasFilters ? (
                 <Link href="/employees" className={buttonSecondary}>
-                  Reset
+                  Hapus filter
                 </Link>
               ) : null}
             </div>
@@ -312,7 +314,7 @@ export default async function EmployeesPage({
                 </div>
               </div>
             </details>
-          </form>
+          </Form>
         </CardBody>
       </Card>
       <Card className="overflow-hidden">
@@ -327,7 +329,7 @@ export default async function EmployeesPage({
                 className={buttonSecondary}
               >
                 <Download size={16} aria-hidden="true" />
-                Export PDF
+                Unduh PDF
               </Link>
             ) : null}
           </div>

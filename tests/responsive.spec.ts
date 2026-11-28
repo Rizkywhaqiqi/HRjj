@@ -167,7 +167,7 @@ test("finance detail keeps amounts, forms and decisions readable on mobile and d
     );
     await expect(page.locator('input[name="amount"]')).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Setujui", exact: true }),
+      page.getByRole("button", { name: "Setujui perubahan", exact: true }),
     ).toBeVisible();
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth),
@@ -198,26 +198,26 @@ test("navigation groups expand once and child buttons open real finance pages", 
   });
   await expect(finance).toHaveAttribute("aria-expanded", "false");
   await expect(
-    sidebar.getByRole("link", { name: "Pengajuan Gaji", exact: true }),
+    sidebar.getByRole("link", { name: "Pengajuan Perubahan Gaji", exact: true }),
   ).toBeHidden();
   await finance.click();
   await sidebar
-    .getByRole("link", { name: "Pengajuan Gaji", exact: true })
+    .getByRole("link", { name: "Pengajuan Perubahan Gaji", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Pengajuan Gaji", exact: true }),
+    page.getByRole("heading", { name: "Pengajuan Perubahan Gaji", exact: true }),
   ).toBeVisible();
   await expect(
     sidebar.getByRole("button", { name: "Keuangan", exact: true }),
   ).toHaveAttribute("aria-expanded", "true");
   await expect(
-    sidebar.getByRole("link", { name: "Pengajuan Gaji", exact: true }),
+    sidebar.getByRole("link", { name: "Pengajuan Perubahan Gaji", exact: true }),
   ).toHaveAttribute("aria-current", "page");
   await sidebar
-    .getByRole("link", { name: "Riwayat Gaji", exact: true })
+    .getByRole("link", { name: "Riwayat Perubahan Gaji", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Riwayat Gaji", exact: true }),
+    page.getByRole("heading", { name: "Riwayat Perubahan Gaji", exact: true }),
   ).toBeVisible();
   await page.screenshot({
     path: "test-results/navigation-desktop.png",
@@ -305,4 +305,18 @@ test("mobile navigation offers an animation toggle without closing the menu", as
     "off",
   );
   await page.keyboard.press("Escape");
+});
+
+
+test('filter changes preserve expanded navigation groups',async({page})=>{
+ await page.setViewportSize({width:1440,height:900});
+ await page.goto('/responsive-check/finance');
+ await page.waitForFunction(()=>document.documentElement.dataset.fixtureReady==='true');
+ const group=page.locator('aside').getByRole('button',{name:'Administrasi HR',exact:true});
+ await group.click();await expect(group).toHaveAttribute('aria-expanded','true');
+ await page.locator('input[name="search"]').fill('Dummy');
+ await page.getByRole('button',{name:'Terapkan filter',exact:true}).click();
+ await expect(page).toHaveURL(/search=Dummy/);
+ await expect(group).toHaveAttribute('aria-expanded','true');
+ await expect(page.locator('aside').getByRole('button',{name:'Keuangan',exact:true})).toHaveAttribute('aria-expanded','true');
 });

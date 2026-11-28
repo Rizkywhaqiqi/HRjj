@@ -210,11 +210,11 @@ export default async function MasterDataPage({
       ? params.section
       : "all";
   const titles: Record<string, string> = {
-    all: "Master data",
+    all: "Semua Referensi",
     organisation: "Brand & CV",
     positions: "Jabatan & Divisi",
     locations: "Outlet",
-    references: "Referensi HR",
+    references: "Kontrak & Alasan Keluar",
   };
   const canManage = hasPermission(actor, PERMISSIONS.masterDataManage);
 

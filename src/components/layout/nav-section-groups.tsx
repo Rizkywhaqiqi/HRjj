@@ -33,7 +33,7 @@ export function NavSectionGroups({
     <>
       {sections.map((section, index) => (
         <NavSectionGroup
-          key={`${section.label}-${pathname}-${search}`}
+          key={`${section.label}-${pathname}-${activeHref ?? "none"}`}
           section={section}
           sectionId={`${idPrefix}-${index}`}
           activeHref={activeHref}
@@ -70,6 +70,7 @@ function NavSectionGroup({
         <button
           type="button"
           aria-label={section.label}
+          title={`${open ? "Tutup" : "Buka"} menu ${section.label}`}
           aria-expanded={open}
           aria-controls={`${sectionId}-items`}
           onClick={() => setOpenOverride(!open)}
@@ -82,16 +83,10 @@ function NavSectionGroup({
           }`}
         >
           <span>{section.label}</span>
-          <span
-            aria-hidden="true"
-            className="ml-auto rounded-full bg-slate-100 px-1.5 py-0.5 text-[0.6rem] text-slate-500"
-          >
-            {section.items.length}
-          </span>
           <ChevronDown
             aria-hidden="true"
             size={14}
-            className={`transition-transform ${open ? "rotate-180" : ""}`}
+            className={`ml-auto shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
           />
         </button>
       )}
@@ -121,7 +116,7 @@ function NavSectionGroup({
                     : "text-slate-600 hover:bg-brand-50 hover:text-brand-700"
                 }`}
               >
-                <NavIcon name={item.icon} />
+                <NavIcon name={item.icon} className="shrink-0" />
                 <span className="min-w-0 break-words">{item.label}</span>
               </Link>
             </li>

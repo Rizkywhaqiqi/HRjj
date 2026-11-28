@@ -1,3 +1,5 @@
+import { SubmitButton } from "@/components/ui/form";
+import Form from "next/form";
 import Link from "next/link";
 import { requireFeatureEnabled, requirePermission } from "@/core/rbac/guard";
 import { PERMISSIONS } from "@/core/rbac/permissions";
@@ -82,7 +84,7 @@ export default async function ReportsPage({
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Laporan karyawan"
+        title="Laporan Karyawan"
         description="Tinjau rekap dan unduh data sesuai izin serta brand yang dapat Anda akses."
         action={
           canExport ? (
@@ -96,8 +98,8 @@ export default async function ReportsPage({
                   }
                 >
                   {format === "xlsx"
-                    ? "Export Excel"
-                    : `Export ${format.toUpperCase()}`}
+                    ? "Unduh Excel"
+                    : `Unduh ${format.toUpperCase()}`}
                 </a>
               ))}
             </div>
@@ -122,8 +124,8 @@ export default async function ReportsPage({
       </div>
       <Card>
         <CardBody>
-          <form
-            method="get"
+          <Form
+            action="/reports"
             className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
           >
             <label className="grid gap-1.5 text-xs font-semibold text-slate-600">
@@ -163,12 +165,12 @@ export default async function ReportsPage({
               Hanya profil aktif belum lengkap
             </label>
             <div className="flex gap-2 sm:col-span-2">
-              <button className={buttonPrimary}>Terapkan filter</button>
+              <SubmitButton pendingLabel="Menerapkan filter...">Terapkan filter</SubmitButton>
               <Link href="/reports" className={buttonSecondary}>
-                Reset
+                Hapus filter
               </Link>
             </div>
-          </form>
+          </Form>
         </CardBody>
       </Card>
       <div className="rounded-xl border border-brand-100 bg-brand-50 px-4 py-3 text-sm text-brand-900">

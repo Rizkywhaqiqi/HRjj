@@ -99,7 +99,7 @@ export default function FinanceFiltersForm({
           Tampilkan data
         </button>
         <Link href="/dashboard#finance-employees" className={buttonSecondary}>
-          Reset
+          Hapus filter
         </Link>
       </div>
     </form>
