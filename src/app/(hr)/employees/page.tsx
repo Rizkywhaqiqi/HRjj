@@ -192,14 +192,14 @@ export default async function EmployeesPage({
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Karyawan"
+        title="Data Karyawan"
         description="Kelola profil, penempatan, dan dokumen karyawan dalam satu tempat."
         action={
           canCreate ? (
             <div className="flex flex-wrap gap-2">
               <Link href="/employees/import" className={buttonSecondary}>
                 <Upload size={16} aria-hidden="true" />
-                Import Excel
+                Impor karyawan
               </Link>
               <Link href="/employees/new" className={buttonPrimary}>
                 <Plus size={17} aria-hidden="true" />
@@ -282,7 +282,7 @@ export default async function EmployeesPage({
               </button>
               {hasFilters ? (
                 <Link href="/employees" className={buttonSecondary}>
-                  Reset
+                  Hapus filter
                 </Link>
               ) : null}
             </div>
@@ -327,7 +327,7 @@ export default async function EmployeesPage({
                 className={buttonSecondary}
               >
                 <Download size={16} aria-hidden="true" />
-                Export PDF
+                Unduh PDF
               </Link>
             ) : null}
           </div>

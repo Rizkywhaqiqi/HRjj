@@ -31,7 +31,7 @@ export default async function FinanceOverview({
         description={`${periodLabel} · karyawan aktif dalam akses Anda`}
         action={
           <Link href="/finance" className={buttonPrimary}>
-            Buka keuangan <ArrowRight size={16} aria-hidden="true" />
+            Lihat data gaji <ArrowRight size={16} aria-hidden="true" />
           </Link>
         }
       />

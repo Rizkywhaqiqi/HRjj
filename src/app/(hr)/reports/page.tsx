@@ -82,7 +82,7 @@ export default async function ReportsPage({
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Laporan karyawan"
+        title="Laporan Karyawan"
         description="Tinjau rekap dan unduh data sesuai izin serta brand yang dapat Anda akses."
         action={
           canExport ? (
@@ -96,8 +96,8 @@ export default async function ReportsPage({
                   }
                 >
                   {format === "xlsx"
-                    ? "Export Excel"
-                    : `Export ${format.toUpperCase()}`}
+                    ? "Unduh Excel"
+                    : `Unduh ${format.toUpperCase()}`}
                 </a>
               ))}
             </div>
@@ -165,7 +165,7 @@ export default async function ReportsPage({
             <div className="flex gap-2 sm:col-span-2">
               <button className={buttonPrimary}>Terapkan filter</button>
               <Link href="/reports" className={buttonSecondary}>
-                Reset
+                Hapus filter
               </Link>
             </div>
           </form>

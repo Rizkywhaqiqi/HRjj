@@ -57,10 +57,10 @@ export default async function FinanceDetail({
           href="/finance"
           className="min-h-11 content-center hover:text-brand-700"
         >
-          Keuangan karyawan
+          Data Gaji Karyawan
         </Link>
         <ChevronRight size={13} aria-hidden="true" />
-        <span className="truncate">Profil keuangan</span>
+        <span className="truncate">Profil gaji</span>
       </nav>
       <PageHeader
         title={e.full_name}
@@ -173,7 +173,7 @@ export default async function FinanceDetail({
               </p>
               <div>
                 <SubmitButton pendingLabel="Mengajukan...">
-                  Ajukan untuk diperiksa
+                  Ajukan perubahan gaji
                 </SubmitButton>
               </div>
             </form>
@@ -296,10 +296,10 @@ export default async function FinanceDetail({
                               value="REJECTED"
                               variant="secondary"
                             >
-                              Tolak
+                              Tolak pengajuan
                             </SubmitButton>
                             <SubmitButton name="decision" value="APPROVED">
-                              Setujui
+                              Setujui perubahan
                             </SubmitButton>
                           </>
                         )}

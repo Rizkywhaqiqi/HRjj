@@ -98,8 +98,8 @@ export default async function Dashboard({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Dashboard HR"
-        description="Ringkasan karyawan dan kontrak yang perlu ditindaklanjuti."
+        title="Dashboard"
+        description="Ringkasan karyawan dan pekerjaan yang perlu ditindaklanjuti sesuai akses Anda."
         action={
           hasPermission(actor, PERMISSIONS.employeeCreate) ? (
             <Link href="/employees/new" className={buttonPrimary}>

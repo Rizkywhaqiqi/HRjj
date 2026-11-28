@@ -110,8 +110,8 @@ export default async function FinancePage({
   return (
     <div className="finance-workspace space-y-5">
       <PageHeader
-        title="Keuangan karyawan"
-        description="Kelola kesiapan data, pemeriksaan, dan perubahan gaji karyawan."
+        title="Data Gaji Karyawan"
+        description="Pilih karyawan untuk melihat profil gaji atau mengajukan perubahan."
         action={
           <div className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
             <CalendarDays size={16} aria-hidden="true" />
@@ -221,7 +221,7 @@ export default async function FinancePage({
                 Terapkan filter
               </button>
               <Link href="/finance" className={buttonSecondary}>
-                Reset
+                Hapus filter
               </Link>
             </div>
           </form>
@@ -302,6 +302,7 @@ export default async function FinancePage({
                           href={`/finance/employees/${e.id}`}
                         >
                           {e.full_name}
+                          <span className="mt-1 block text-xs font-medium text-brand-700">Lihat profil gaji</span>
                         </Link>
                         <p className="text-xs text-slate-500">
                           {e.employee_code} ·{" "}
